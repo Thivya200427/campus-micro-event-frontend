@@ -1,9 +1,13 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { logoutUser,getLoggedInUser } from "../utils/authStore";
 
 function EstateLayout() {
   const navigate = useNavigate();
+  const user = getLoggedInUser();
+  
 
   const handleLogout = () => {
+    logoutUser();
     navigate("/login");
   };
 
@@ -82,8 +86,8 @@ function EstateLayout() {
             </div>
 
             <div>
-              <strong>Estate Manager</strong>
-              <small>Campus Estate Manager</small>
+              <strong>{user?.name || "Estate Manager"}</strong>
+              <small>Estate Manager</small>
             </div>
           </div>
         </header>

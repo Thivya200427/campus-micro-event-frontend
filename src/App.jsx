@@ -1,16 +1,13 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
-// ======================================================
 // AUTHENTICATION
-// ======================================================
-
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 
-// ======================================================
-// LAYOUTS
-// ======================================================
+// PROTECTED ROUTE
+import ProtectedRoute from "./components/ProtectedRoute";
 
+// LAYOUTS
 import DashboardLayout from "./layouts/DashboardLayout";
 import EstateLayout from "./layouts/EstateLayout";
 import AdminLayout from "./layouts/AdminLayout";
@@ -89,9 +86,13 @@ function App() {
       {/* ==================================================
           CLUB REPRESENTATIVE ROUTES
       ================================================== */}
-
-      <Route element={<DashboardLayout />}>
-
+      <Route
+        element={
+          <ProtectedRoute allowedRole="club">
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route
           path="/dashboard"
           element={<Dashboard />}
@@ -148,6 +149,7 @@ function App() {
         />
 
       </Route>
+
 
       {/* ==================================================
           ESTATE MANAGER ROUTES

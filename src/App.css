@@ -289,3 +289,124 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================
+   DASHBOARD SCROLL FIX
+========================================= */
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-y: auto;
+}
+
+.admin-layout,
+.dashboard-layout,
+.estate-layout {
+  min-height: 100vh;
+  height: auto;
+}
+
+.main-content,
+.dashboard-content,
+.admin-content,
+.estate-content {
+  min-height: 100vh;
+  height: auto;
+  overflow-y: auto;
+}
+
+/* Fixed sidebar + scrollable main area */
+.admin-layout,
+.dashboard-layout,
+.estate-layout {
+  display: flex;
+}
+
+.admin-layout main,
+.dashboard-layout main,
+.estate-layout main {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+/* ==================================================
+   FINAL SCROLL FIX
+================================================== */
+
+html {
+  height: auto !important;
+  min-height: 100%;
+  overflow-y: auto !important;
+}
+
+body {
+  height: auto !important;
+  min-height: 100vh;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+#root {
+  height: auto !important;
+  min-height: 100vh;
+  overflow: visible !important;
+}
+
+/* All dashboard layouts */
+.dashboard-layout,
+.estate-layout,
+.admin-layout {
+  width: 100%;
+  min-height: 100vh !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+/* Main content areas */
+.main-content,
+.dashboard-content,
+.admin-content,
+.estate-content {
+  min-height: 100vh !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+/* Main element */
+.dashboard-layout main,
+.estate-layout main,
+.admin-layout main {
+  min-height: 100vh !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+/* Sidebar can stay on screen while page scrolls */
+.sidebar,
+.admin-sidebar,
+.estate-sidebar {
+  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+}
+
+/* Prevent cards/tables from locking page height */
+.dashboard-section,
+.report-card,
+.content-area {
+  height: auto !important;
+  max-height: none !important;
+}

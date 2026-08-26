@@ -11,241 +11,352 @@ import {
   Cell,
 } from "recharts";
 
+import { getEvents } from "../../utils/eventStore";
+import { getUsers } from "../../utils/userStore";
+
 function AdminReports() {
-  const monthlyEvents = [
-    { month: "Mar", events: 5 },
-    { month: "Apr", events: 7 },
-    { month: "May", events: 6 },
-    { month: "Jun", events: 10 },
-    { month: "Jul", events: 9 },
-    { month: "Aug", events: 12 },
+  const events = getEvents();
+  const users = getUsers();
+
+  const totalUsers = users.length;
+
+  const activeUsers = users.filter(
+    (user) => user.status === "Active"
+  ).length;
+
+  const totalEvents = events.length;
+
+  const pendingEvents = events.filter(
+    (event) => event.status === "Pending"
+  ).length;
+
+  const approvedEvents = events.filter(
+    (event) => event.status === "Approved"
+  ).length;
+
+  const rejectedEvents = events.filter(
+    (event) => event.status === "Rejected"
+  ).length;
+
+  const totalParticipants = events.reduce(
+    (total, event) =>
+      total + Number(event.expectedParticipants || 0),
+    0
+  );
+
+  const monthlyMap = {};
+
+  events.forEach((event) => {
+    if (!event.date) {
+      return;
+    }
+
+    const date = new Date(event.date);
+
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const month = date.toLocaleString("en-US", {
+      month: "short",
+    });
+
+    if (!monthlyMap[month]) {
+      monthlyMap[month] = 0;
+    }
+
+    monthlyMap[month] += 1;
+  });
+
+  const monthlyEvents = Object.entries(monthlyMap).map(
+    ([month, count]) => ({
+      month,
+      events: count,
+    })
+  );
+
+  const statusData = [
+    {
+      name: "Approved",
+      value: approvedEvents,
+    },
+    {
+      name: "Pending",
+      value: pendingEvents,
+    },
+    {
+      name: "Rejected",
+      value: rejectedEvents,
+    },
   ];
 
-  const eventStatus = [
-    { name: "Approved", value: 28 },
-    { name: "Pending", value: 14 },
-    { name: "Rejected", value: 7 },
+  const pieColors = [
+    "#0f766e",
+    "#f59e0b",
+    "#dc2626",
   ];
-
-  const pieColors = ["#0f766e", "#14b8a6", "#99f6e4"];
 
   return (
     <div>
-      {/* Page Heading */}
-      <div className="dashboard-title mb-4">
+      <div className="dashboard-title">
         <div>
           <h2>Admin Reports</h2>
-          <p className="text-muted mb-0">
-            View system statistics and event activity.
+
+          <p>
+            View overall system users, events and activity statistics.
           </p>
         </div>
       </div>
 
       {/* Statistics */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-6 col-xl-3">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="d-flex align-items-center gap-3">
-                <div className="fs-2 text-success">
-                  <i className="bi bi-people"></i>
-                </div>
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-people"></i>
+          </div>
 
-                <div>
-                  <p className="text-muted mb-1">Total Users</p>
-                  <h3 className="mb-0">41</h3>
-                </div>
-              </div>
-            </div>
+          <div>
+            <span>Total Users</span>
+            <h3>{totalUsers}</h3>
           </div>
         </div>
 
-        <div className="col-md-6 col-xl-3">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="d-flex align-items-center gap-3">
-                <div className="fs-2 text-success">
-                  <i className="bi bi-calendar-event"></i>
-                </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-person-check"></i>
+          </div>
 
-                <div>
-                  <p className="text-muted mb-1">Total Events</p>
-                  <h3 className="mb-0">49</h3>
-                </div>
-              </div>
-            </div>
+          <div>
+            <span>Active Users</span>
+            <h3>{activeUsers}</h3>
           </div>
         </div>
 
-        <div className="col-md-6 col-xl-3">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="d-flex align-items-center gap-3">
-                <div className="fs-2 text-success">
-                  <i className="bi bi-building"></i>
-                </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-calendar-event"></i>
+          </div>
 
-                <div>
-                  <p className="text-muted mb-1">Venues</p>
-                  <h3 className="mb-0">8</h3>
-                </div>
-              </div>
-            </div>
+          <div>
+            <span>Total Events</span>
+            <h3>{totalEvents}</h3>
           </div>
         </div>
 
-        <div className="col-md-6 col-xl-3">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="d-flex align-items-center gap-3">
-                <div className="fs-2 text-success">
-                  <i className="bi bi-box-seam"></i>
-                </div>
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-hourglass-split"></i>
+          </div>
 
-                <div>
-                  <p className="text-muted mb-1">Resources</p>
-                  <h3 className="mb-0">390</h3>
-                </div>
-              </div>
-            </div>
+          <div>
+            <span>Pending</span>
+            <h3>{pendingEvents}</h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-check-circle"></i>
+          </div>
+
+          <div>
+            <span>Approved</span>
+            <h3>{approvedEvents}</h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-people"></i>
+          </div>
+
+          <div>
+            <span>Total Participants</span>
+            <h3>{totalParticipants}</h3>
           </div>
         </div>
       </div>
 
       {/* Charts */}
-      <div className="row g-4">
-        {/* Bar Chart */}
-        <div className="col-lg-7">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <h5>Monthly Events</h5>
+      <div className="report-grid">
+        <div className="report-card">
+          <div className="section-header">
+            <div>
+              <h4>Monthly Events</h4>
 
-              <p className="text-muted">
-                Number of campus events created each month.
+              <p>
+                Number of events created for each month.
               </p>
-
-              <div style={{ width: "100%", height: "300px" }}>
-                <ResponsiveContainer>
-                  <BarChart data={monthlyEvents}>
-                    <CartesianGrid strokeDasharray="3 3" />
-
-                    <XAxis dataKey="month" />
-
-                    <YAxis />
-
-                    <Tooltip />
-
-                    <Bar
-                      dataKey="events"
-                      fill="#13877d"
-                      radius={[5, 5, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
             </div>
           </div>
+
+          {monthlyEvents.length === 0 ? (
+            <div className="text-center py-5">
+              <p className="text-muted">
+                No event data available for the chart.
+              </p>
+            </div>
+          ) : (
+            <ResponsiveContainer
+              width="100%"
+              height={320}
+            >
+              <BarChart data={monthlyEvents}>
+                <CartesianGrid strokeDasharray="3 3" />
+
+                <XAxis dataKey="month" />
+
+                <YAxis allowDecimals={false} />
+
+                <Tooltip />
+
+                <Bar
+                  dataKey="events"
+                  fill="#0f766e"
+                  radius={[5, 5, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        {/* Pie Chart */}
-        <div className="col-lg-5">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <h5>Event Status</h5>
+        <div className="report-card">
+          <div className="section-header">
+            <div>
+              <h4>Event Status</h4>
 
-              <p className="text-muted">
-                Current event request status.
+              <p>
+                Current event approval distribution.
               </p>
-
-              <div style={{ width: "100%", height: "300px" }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie
-                      data={eventStatus}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={95}
-                      label
-                    >
-                      {eventStatus.map((item, index) => (
-                        <Cell
-                          key={item.name}
-                          fill={pieColors[index]}
-                        />
-                      ))}
-                    </Pie>
-
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
             </div>
           </div>
+
+          {totalEvents === 0 ? (
+            <div className="text-center py-5">
+              <p className="text-muted">
+                No event status data available.
+              </p>
+            </div>
+          ) : (
+            <ResponsiveContainer
+              width="100%"
+              height={320}
+            >
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                >
+                  {statusData.map((item, index) => (
+                    <Cell
+                      key={item.name}
+                      fill={pieColors[index]}
+                    />
+                  ))}
+                </Pie>
+
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
-      {/* Summary Table */}
-      <div className="card border-0 shadow-sm mt-4">
-        <div className="card-body">
-          <h5 className="mb-3">Event Summary</h5>
+      {/* Summary */}
+      <div className="dashboard-section mt-4">
+        <div className="section-header">
+          <div>
+            <h4>System Summary</h4>
 
-          <div className="table-responsive">
-            <table className="table align-middle">
-              <thead>
-                <tr>
-                  <th>Status</th>
-                  <th>Total Events</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                <tr>
-                  <td>
-                    <span className="badge bg-success">
-                      Approved
-                    </span>
-                  </td>
-
-                  <td>28</td>
-
-                  <td>
-                    Events approved by the Estate Manager.
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>
-                    <span className="badge bg-warning text-dark">
-                      Pending
-                    </span>
-                  </td>
-
-                  <td>14</td>
-
-                  <td>
-                    Events waiting for approval.
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>
-                    <span className="badge bg-danger">
-                      Rejected
-                    </span>
-                  </td>
-
-                  <td>7</td>
-
-                  <td>
-                    Event requests that were rejected.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <p>
+              User and event statistics.
+            </p>
           </div>
+        </div>
+
+        <div className="table-responsive">
+          <table className="table dashboard-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Total</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr>
+                <td>Registered Users</td>
+                <td>{totalUsers}</td>
+                <td>
+                  Total accounts registered in the system.
+                </td>
+              </tr>
+
+              <tr>
+                <td>Active Users</td>
+                <td>{activeUsers}</td>
+                <td>
+                  Users currently allowed to sign in.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <span className="status approved">
+                    Approved
+                  </span>
+                </td>
+
+                <td>{approvedEvents}</td>
+
+                <td>
+                  Event requests approved by the Estate Manager.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <span className="status pending">
+                    Pending
+                  </span>
+                </td>
+
+                <td>{pendingEvents}</td>
+
+                <td>
+                  Event requests waiting for Estate Manager review.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <span className="status rejected">
+                    Rejected
+                  </span>
+                </td>
+
+                <td>{rejectedEvents}</td>
+
+                <td>
+                  Event requests rejected by the Estate Manager.
+                </td>
+              </tr>
+
+              <tr>
+                <td>Total Participants</td>
+                <td>{totalParticipants}</td>
+                <td>
+                  Total expected participants across all events.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

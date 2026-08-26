@@ -1,44 +1,51 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { registerUser } from "../../utils/userStore";
+
 function Register() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    fullName: "",
+    name: "",
     email: "",
-    role: "",
+    role: "club",
     password: "",
     confirmPassword: "",
   });
-
-  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-
-    setError("");
   };
 
-  const handleRegister = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      alert("Passwords do not match");
       return;
     }
 
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
+      alert("Password must contain at least 6 characters");
       return;
     }
 
-    console.log("Register Data:", formData);
+    const result = registerUser({
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      role: "club",
+      password: formData.password,
+    });
 
-    // Temporary frontend-only registration
+    if (!result.success) {
+      alert(result.message);
+      return;
+    }
+
     alert("Registration successful");
 
     navigate("/login");
@@ -53,11 +60,12 @@ function Register() {
           <h1>Create Account</h1>
 
           <p>
-            Register for the Campus Micro-Event Management System
+            Register to access the Campus Micro-Event System
           </p>
         </div>
 
-        <form onSubmit={handleRegister}>
+        <form onSubmit={handleSubmit}>
+          {/* Full Name */}
           <div className="mb-3">
             <label className="form-label">
               Full Name
@@ -65,15 +73,16 @@ function Register() {
 
             <input
               type="text"
-              name="fullName"
+              name="name"
               className="form-control"
               placeholder="Enter your full name"
-              value={formData.fullName}
+              value={formData.name}
               onChange={handleChange}
               required
             />
           </div>
 
+          {/* Email */}
           <div className="mb-3">
             <label className="form-label">
               Email Address
@@ -90,6 +99,7 @@ function Register() {
             />
           </div>
 
+          {/* Role */}
           <div className="mb-3">
             <label className="form-label">
               Role
@@ -101,25 +111,19 @@ function Register() {
               value={formData.role}
               onChange={handleChange}
               required
+              disabled
             >
-              <option value="">
-                Select your role
-              </option>
-
               <option value="club">
                 Club Representative
               </option>
-
-              <option value="estate">
-                Estate Manager
-              </option>
-
-              <option value="admin">
-                System Admin
-              </option>
             </select>
+
+            <small className="text-muted">
+              Public registration is available only for Club Representatives.
+            </small>
           </div>
 
+          {/* Password */}
           <div className="mb-3">
             <label className="form-label">
               Password
@@ -129,14 +133,16 @@ function Register() {
               type="password"
               name="password"
               className="form-control"
-              placeholder="Create a password"
+              placeholder="Enter password"
               value={formData.password}
               onChange={handleChange}
+              minLength="6"
               required
             />
           </div>
 
-          <div className="mb-3">
+          {/* Confirm Password */}
+          <div className="mb-4">
             <label className="form-label">
               Confirm Password
             </label>
@@ -144,39 +150,35 @@ function Register() {
             <input
               type="password"
               name="confirmPassword"
-              className={`form-control ${
-                error ? "is-invalid" : ""
-              }`}
-              placeholder="Confirm your password"
+              className="form-control"
+              placeholder="Confirm password"
               value={formData.confirmPassword}
               onChange={handleChange}
+              minLength="6"
               required
             />
-
-            {error && (
-              <div className="invalid-feedback d-block">
-                {error}
-              </div>
-            )}
           </div>
 
+          {/* Register Button */}
           <button
             type="submit"
-            className="btn register-btn w-100"
+            className="register-btn w-100"
           >
             Create Account
           </button>
         </form>
 
-        <p className="login-link">
+        {/* Login Link */}
+        <div className="login-link">
           Already have an account?{" "}
+
           <button
             type="button"
             onClick={() => navigate("/login")}
           >
             Sign In
           </button>
-        </p>
+        </div>
       </div>
     </div>
   );

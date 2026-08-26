@@ -1,9 +1,10 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-
+import { logoutUser } from "../utils/authStore";
 function DashboardLayout() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    logoutUser();
     navigate("/login");
   };
 
@@ -69,25 +70,8 @@ function DashboardLayout() {
             <i className="bi bi-bar-chart"></i>
             Reports
           </NavLink>
-
-          <NavLink to="/check-in">
-          <i className="bi bi-person-check"></i>
-          <span>Participant Check-In</span>
-          </NavLink>
-
-          <NavLink to="/crowd-status">
-          <i className="bi bi-activity"></i>
-          <span>Crowd Status</span>
-          </NavLink>
-
-          <NavLink
-          to="/recommendation"
-          className={({ isActive }) =>isActive ? "sidebar-link active" : "sidebar-link"}>
-            <i className="bi bi-stars"></i>
-            <span>AI Recommendation</span>
-            </NavLink>
-            
-        </nav>
+          
+          </nav>
 
         <button
           className="logout-btn"

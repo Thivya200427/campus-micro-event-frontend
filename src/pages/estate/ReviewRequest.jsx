@@ -28,9 +28,7 @@ function ReviewRequest() {
         <div className="dashboard-title">
           <div>
             <h2>Event Not Found</h2>
-            <p>
-              The selected request could not be found.
-            </p>
+            <p>The selected event request could not be found.</p>
           </div>
 
           <Link
@@ -44,12 +42,12 @@ function ReviewRequest() {
     );
   }
 
-  const updateStatus = (newStatus) => {
+  const updateEventStatus = (status) => {
     const updatedEvents = events.map((item) => {
       if (String(item.id) === String(id)) {
         return {
           ...item,
-          status: newStatus,
+          status,
           managerRemarks: remarks,
           reviewedAt: new Date().toISOString(),
         };
@@ -62,22 +60,22 @@ function ReviewRequest() {
   };
 
   const handleApprove = () => {
-    updateStatus("Approved");
+    updateEventStatus("Approved");
 
-    alert("Event approved successfully");
+    alert("Event approved successfully.");
 
     navigate("/estate/approved");
   };
 
   const handleReject = () => {
     if (!remarks.trim()) {
-      alert("Please enter a rejection reason");
+      alert("Please enter a rejection reason.");
       return;
     }
 
-    updateStatus("Rejected");
+    updateEventStatus("Rejected");
 
-    alert("Event rejected successfully");
+    alert("Event rejected successfully.");
 
     navigate("/estate/rejected");
   };
@@ -87,9 +85,7 @@ function ReviewRequest() {
       <div className="dashboard-title">
         <div>
           <h2>Review Event Request</h2>
-          <p>
-            Review the submitted event before making a decision.
-          </p>
+          <p>Review the event details before making a decision.</p>
         </div>
 
         <Link
@@ -107,9 +103,7 @@ function ReviewRequest() {
 
           <div className="detail-row">
             <span>Event Type</span>
-            <strong>
-              {event.eventType || "-"}
-            </strong>
+            <strong>{event.eventType || "-"}</strong>
           </div>
 
           <div className="detail-row">
@@ -120,8 +114,7 @@ function ReviewRequest() {
           <div className="detail-row">
             <span>Time</span>
             <strong>
-              {event.startTime || "-"} -{" "}
-              {event.endTime || "-"}
+              {event.startTime || "-"} - {event.endTime || "-"}
             </strong>
           </div>
 
@@ -132,9 +125,7 @@ function ReviewRequest() {
 
           <div className="detail-row">
             <span>Expected Participants</span>
-            <strong>
-              {event.expectedParticipants}
-            </strong>
+            <strong>{event.expectedParticipants}</strong>
           </div>
 
           <div className="detail-row">
@@ -154,9 +145,7 @@ function ReviewRequest() {
 
             <div>
               <span>Chairs</span>
-              <strong>
-                {event.chairs || 0}
-              </strong>
+              <strong>{event.chairs || 0}</strong>
             </div>
           </div>
 
@@ -165,9 +154,7 @@ function ReviewRequest() {
 
             <div>
               <span>Microphones</span>
-              <strong>
-                {event.microphones || 0}
-              </strong>
+              <strong>{event.microphones || 0}</strong>
             </div>
           </div>
 
@@ -176,9 +163,7 @@ function ReviewRequest() {
 
             <div>
               <span>Projectors</span>
-              <strong>
-                {event.projectors || 0}
-              </strong>
+              <strong>{event.projectors || 0}</strong>
             </div>
           </div>
         </div>
@@ -188,8 +173,7 @@ function ReviewRequest() {
         <h4>Description</h4>
 
         <p className="text-muted mb-0">
-          {event.description ||
-            "No description provided."}
+          {event.description || "No description provided."}
         </p>
       </div>
 
@@ -201,9 +185,7 @@ function ReviewRequest() {
           rows="4"
           placeholder="Enter remarks or rejection reason"
           value={remarks}
-          onChange={(e) =>
-            setRemarks(e.target.value)
-          }
+          onChange={(e) => setRemarks(e.target.value)}
         ></textarea>
 
         <div className="review-actions">
