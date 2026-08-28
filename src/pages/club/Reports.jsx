@@ -8,22 +8,121 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import { getEvents } from "../../utils/eventStore";
+import { getEventAttendance } from "../../utils/attendanceStore";
+
 function Reports() {
-  const chartData = [
-    { month: "Mar", events: 3 },
-    { month: "Apr", events: 5 },
-    { month: "May", events: 4 },
-    { month: "Jun", events: 7 },
-    { month: "Jul", events: 6 },
-    { month: "Aug", events: 8 },
+  const events = getEvents();
+
+  const totalEvents = events.length;
+
+  const approvedEvents = events.filter(
+    (event) => event.status === "Approved"
+  );
+
+  const pendingEvents = events.filter(
+    (event) => event.status === "Pending"
+  );
+
+  const rejectedEvents = events.filter(
+    (event) => event.status === "Rejected"
+  );
+
+  const cancelledEvents = events.filter(
+    (event) => event.status === "Cancelled"
+  );
+
+  const totalExpectedParticipants = events.reduce(
+    (total, event) =>
+      total + Number(event.expectedParticipants || 0),
+    0
+  );
+
+  const totalCheckedIn = approvedEvents.reduce(
+    (total, event) =>
+      total + getEventAttendance(event.id).length,
+    0
+  );
+
+  const approvedExpectedParticipants =
+    approvedEvents.reduce(
+      (total, event) =>
+        total + Number(event.expectedParticipants || 0),
+      0
+    );
+
+  const attendanceRate =
+    approvedExpectedParticipants > 0
+      ? Math.round(
+          (totalCheckedIn /
+            approvedExpectedParticipants) *
+            100
+        )
+      : 0;
+
+  const venuesUsed = new Set(
+    events
+      .filter(
+        (event) =>
+          event.venue &&
+          event.status === "Approved"
+      )
+      .map((event) => event.venue)
+  ).size;
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
+
+  const monthlyEventMap = {};
+
+  events.forEach((event) => {
+    if (!event.date) {
+      return;
+    }
+
+    const date = new Date(
+      `${event.date}T00:00:00`
+    );
+
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const month =
+      monthNames[date.getMonth()];
+
+    monthlyEventMap[month] =
+      (monthlyEventMap[month] || 0) + 1;
+  });
+
+  const chartData = monthNames
+    .map((month) => ({
+      month,
+      events: monthlyEventMap[month] || 0,
+    }))
+    .filter((item) => item.events > 0);
 
   return (
     <div>
       <div className="dashboard-title">
         <div>
           <h2>Reports</h2>
-          <p>View event statistics and activity summary.</p>
+
+          <p>
+            View event statistics and activity summary.
+          </p>
         </div>
       </div>
 
@@ -35,7 +134,7 @@ function Reports() {
 
           <div>
             <span>Total Events</span>
-            <h3>33</h3>
+            <h3>{totalEvents}</h3>
           </div>
         </div>
 
@@ -46,7 +145,7 @@ function Reports() {
 
           <div>
             <span>Approved</span>
-            <h3>22</h3>
+            <h3>{approvedEvents.length}</h3>
           </div>
         </div>
 
@@ -57,7 +156,7 @@ function Reports() {
 
           <div>
             <span>Pending</span>
-            <h3>7</h3>
+            <h3>{pendingEvents.length}</h3>
           </div>
         </div>
 
@@ -68,7 +167,7 @@ function Reports() {
 
           <div>
             <span>Rejected</span>
-            <h3>4</h3>
+            <h3>{rejectedEvents.length}</h3>
           </div>
         </div>
       </div>
@@ -78,20 +177,43 @@ function Reports() {
           <div className="section-header">
             <div>
               <h4>Monthly Events</h4>
-              <p>Number of events created each month.</p>
+
+              <p>
+                Number of events created for each month.
+              </p>
             </div>
           </div>
 
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="events" fill="#0f766e" />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartData.length === 0 ? (
+              <div className="text-center text-muted py-5">
+                No event data available for the chart.
+              </div>
+            ) : (
+              <ResponsiveContainer
+                width="100%"
+                height={320}
+              >
+                <BarChart data={chartData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                  />
+
+                  <XAxis dataKey="month" />
+
+                  <YAxis
+                    allowDecimals={false}
+                  />
+
+                  <Tooltip />
+
+                  <Bar
+                    dataKey="events"
+                    fill="#0f766e"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -99,34 +221,78 @@ function Reports() {
           <div className="section-header">
             <div>
               <h4>Event Summary</h4>
-              <p>Current event request status.</p>
+
+              <p>
+                Current event and attendance statistics.
+              </p>
             </div>
           </div>
 
           <div className="report-summary-list">
             <div className="report-summary-item">
               <span>Approved Events</span>
-              <strong>22</strong>
+
+              <strong>
+                {approvedEvents.length}
+              </strong>
             </div>
 
             <div className="report-summary-item">
               <span>Pending Events</span>
-              <strong>7</strong>
+
+              <strong>
+                {pendingEvents.length}
+              </strong>
             </div>
 
             <div className="report-summary-item">
               <span>Rejected Events</span>
-              <strong>4</strong>
+
+              <strong>
+                {rejectedEvents.length}
+              </strong>
             </div>
 
             <div className="report-summary-item">
-              <span>Total Participants</span>
-              <strong>1,240</strong>
+              <span>Cancelled Events</span>
+
+              <strong>
+                {cancelledEvents.length}
+              </strong>
+            </div>
+
+            <div className="report-summary-item">
+              <span>
+                Expected Participants
+              </span>
+
+              <strong>
+                {totalExpectedParticipants}
+              </strong>
+            </div>
+
+            <div className="report-summary-item">
+              <span>Actual Check-Ins</span>
+
+              <strong>
+                {totalCheckedIn}
+              </strong>
+            </div>
+
+            <div className="report-summary-item">
+              <span>Attendance Rate</span>
+
+              <strong>
+                {attendanceRate}%
+              </strong>
             </div>
 
             <div className="report-summary-item">
               <span>Venues Used</span>
-              <strong>4</strong>
+
+              <strong>
+                {venuesUsed}
+              </strong>
             </div>
           </div>
         </div>

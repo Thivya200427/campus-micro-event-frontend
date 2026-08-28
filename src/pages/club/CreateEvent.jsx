@@ -2,9 +2,41 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { addEvent } from "../../utils/eventStore";
+import { getVenues } from "../../utils/venueStore";
+import { getResources } from "../../utils/resourceStore";
 
 function CreateEvent() {
   const navigate = useNavigate();
+
+  const venues = getVenues();
+  const resources = getResources();
+
+  const availableVenues = venues.filter(
+    (venue) => venue.status === "Available"
+  );
+
+  const getResourceByName = (name) => {
+    return resources.find(
+      (resource) =>
+        resource.name?.toLowerCase() === name.toLowerCase()
+    );
+  };
+
+  const chairsResource = getResourceByName("Chairs");
+  const microphonesResource = getResourceByName("Microphones");
+  const projectorsResource = getResourceByName("Projectors");
+
+  const chairsAvailable = Number(
+    chairsResource?.available || 0
+  );
+
+  const microphonesAvailable = Number(
+    microphonesResource?.available || 0
+  );
+
+  const projectorsAvailable = Number(
+    projectorsResource?.available || 0
+  );
 
   const [formData, setFormData] = useState({
     title: "",
@@ -27,26 +59,107 @@ function CreateEvent() {
     });
   };
 
+  const validateEvent = () => {
+    const expectedParticipants = Number(
+      formData.expectedParticipants || 0
+    );
+
+    const requestedChairs = Number(
+      formData.chairs || 0
+    );
+
+    const requestedMicrophones = Number(
+      formData.microphones || 0
+    );
+
+    const requestedProjectors = Number(
+      formData.projectors || 0
+    );
+
+    if (formData.endTime <= formData.startTime) {
+      alert("End time must be later than start time.");
+      return false;
+    }
+
+    const selectedVenue = venues.find(
+      (venue) => venue.name === formData.venue
+    );
+
+    if (!selectedVenue) {
+      alert("Please select a valid venue.");
+      return false;
+    }
+
+    if (selectedVenue.status !== "Available") {
+      alert(
+        `${selectedVenue.name} is currently not available.`
+      );
+      return false;
+    }
+
+    if (
+      expectedParticipants >
+      Number(selectedVenue.capacity)
+    ) {
+      alert(
+        `The selected venue capacity is ${selectedVenue.capacity}. Please reduce participants or choose a larger venue.`
+      );
+      return false;
+    }
+
+    if (requestedChairs > chairsAvailable) {
+      alert(
+        `Only ${chairsAvailable} chairs are currently available.`
+      );
+      return false;
+    }
+
+    if (
+      requestedMicrophones >
+      microphonesAvailable
+    ) {
+      alert(
+        `Only ${microphonesAvailable} microphones are currently available.`
+      );
+      return false;
+    }
+
+    if (
+      requestedProjectors >
+      projectorsAvailable
+    ) {
+      alert(
+        `Only ${projectorsAvailable} projectors are currently available.`
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const saveEvent = (status) => {
     addEvent({
       ...formData,
 
-      expectedParticipants:
-        Number(formData.expectedParticipants),
+      expectedParticipants: Number(
+        formData.expectedParticipants || 0
+      ),
 
-      chairs:
-        Number(formData.chairs || 0),
+      chairs: Number(
+        formData.chairs || 0
+      ),
 
-      microphones:
-        Number(formData.microphones || 0),
+      microphones: Number(
+        formData.microphones || 0
+      ),
 
-      projectors:
-        Number(formData.projectors || 0),
+      projectors: Number(
+        formData.projectors || 0
+      ),
 
-      status: status,
+      status,
 
-      createdAt:
-        new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     });
 
     navigate("/events");
@@ -55,12 +168,22 @@ function CreateEvent() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (!validateEvent()) {
+      return;
+    }
+
     saveEvent("Pending");
+
+    alert(
+      "Event request submitted successfully."
+    );
   };
 
   const handleDraft = () => {
     if (!formData.title.trim()) {
-      alert("Please enter an event title first.");
+      alert(
+        "Please enter an event title first."
+      );
       return;
     }
 
@@ -202,22 +325,25 @@ function CreateEvent() {
                   Select venue
                 </option>
 
-                <option value="Main Hall">
-                  Main Hall
-                </option>
-
-                <option value="Conference Hall">
-                  Conference Hall
-                </option>
-
-                <option value="Auditorium">
-                  Auditorium
-                </option>
-
-                <option value="Room B12">
-                  Room B12
-                </option>
+                {availableVenues.map(
+                  (venue) => (
+                    <option
+                      key={venue.id}
+                      value={venue.name}
+                    >
+                      {venue.name}
+                      {" - "}
+                      Capacity {venue.capacity}
+                    </option>
+                  )
+                )}
               </select>
+
+              {availableVenues.length === 0 && (
+                <small className="text-danger">
+                  No available venues at the moment.
+                </small>
+              )}
             </div>
 
             <div className="col-md-6">
@@ -231,10 +357,25 @@ function CreateEvent() {
                 className="form-control"
                 placeholder="Enter expected participants"
                 min="1"
-                value={formData.expectedParticipants}
+                value={
+                  formData.expectedParticipants
+                }
                 onChange={handleChange}
                 required
               />
+
+              {formData.venue && (
+                <small className="text-muted">
+                  Venue capacity:{" "}
+                  {
+                    venues.find(
+                      (venue) =>
+                        venue.name ===
+                        formData.venue
+                    )?.capacity
+                  }
+                </small>
+              )}
             </div>
 
             <div className="col-12">
@@ -272,9 +413,14 @@ function CreateEvent() {
                 className="form-control"
                 placeholder="0"
                 min="0"
+                max={chairsAvailable}
                 value={formData.chairs}
                 onChange={handleChange}
               />
+
+              <small className="text-muted">
+                Available: {chairsAvailable}
+              </small>
             </div>
 
             <div className="col-md-4">
@@ -288,9 +434,17 @@ function CreateEvent() {
                 className="form-control"
                 placeholder="0"
                 min="0"
-                value={formData.microphones}
+                max={microphonesAvailable}
+                value={
+                  formData.microphones
+                }
                 onChange={handleChange}
               />
+
+              <small className="text-muted">
+                Available:{" "}
+                {microphonesAvailable}
+              </small>
             </div>
 
             <div className="col-md-4">
@@ -304,9 +458,15 @@ function CreateEvent() {
                 className="form-control"
                 placeholder="0"
                 min="0"
+                max={projectorsAvailable}
                 value={formData.projectors}
                 onChange={handleChange}
               />
+
+              <small className="text-muted">
+                Available:{" "}
+                {projectorsAvailable}
+              </small>
             </div>
           </div>
 

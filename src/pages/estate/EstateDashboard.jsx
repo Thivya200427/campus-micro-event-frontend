@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
+
 import { getEvents } from "../../utils/eventStore";
+import { getVenues } from "../../utils/venueStore";
+import { getResources } from "../../utils/resourceStore";
 
 function EstateDashboard() {
   const events = getEvents();
+  const venues = getVenues();
+  const resources = getResources();
 
   const pendingEvents = events.filter(
     (event) => event.status === "Pending"
@@ -16,13 +21,56 @@ function EstateDashboard() {
     (event) => event.status === "Rejected"
   );
 
-  const totalParticipants = events.reduce(
+  const cancelledEvents = events.filter(
+    (event) => event.status === "Cancelled"
+  );
+
+  const totalParticipants = approvedEvents.reduce(
     (total, event) =>
       total + Number(event.expectedParticipants || 0),
     0
   );
 
-  const recentPending = pendingEvents.slice(0, 5);
+  const bookedVenues = venues.filter(
+    (venue) => venue.status === "Booked"
+  ).length;
+
+  const availableVenues = venues.filter(
+    (venue) => venue.status === "Available"
+  ).length;
+
+  const totalResourceQuantity = resources.reduce(
+    (total, resource) =>
+      total + Number(resource.total || 0),
+    0
+  );
+
+  const availableResourceQuantity =
+    resources.reduce(
+      (total, resource) =>
+        total + Number(resource.available || 0),
+      0
+    );
+
+  const allocatedResources = Math.max(
+    totalResourceQuantity -
+      availableResourceQuantity,
+    0
+  );
+
+  const recentPending = [...pendingEvents]
+    .sort((a, b) => {
+      const aTime = new Date(
+        a.createdAt || a.date || 0
+      ).getTime();
+
+      const bTime = new Date(
+        b.createdAt || b.date || 0
+      ).getTime();
+
+      return bTime - aTime;
+    })
+    .slice(0, 5);
 
   return (
     <div>
@@ -31,7 +79,8 @@ function EstateDashboard() {
           <h2>Estate Manager Dashboard</h2>
 
           <p>
-            Review event requests and manage campus venues and resources.
+            Review event requests and manage campus
+            venues and resources.
           </p>
         </div>
       </div>
@@ -72,17 +121,63 @@ function EstateDashboard() {
 
         <div className="stat-card">
           <div className="stat-icon">
-            <i className="bi bi-people"></i>
+            <i className="bi bi-calendar-x"></i>
           </div>
 
           <div>
-            <span>Total Participants</span>
-            <h3>{totalParticipants}</h3>
+            <span>Cancelled Events</span>
+            <h3>{cancelledEvents.length}</h3>
           </div>
         </div>
       </div>
 
-      <div className="dashboard-section">
+      <div className="stats-grid mt-4">
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-people"></i>
+          </div>
+
+          <div>
+            <span>Approved Participants</span>
+            <h3>{totalParticipants}</h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-building-check"></i>
+          </div>
+
+          <div>
+            <span>Booked Venues</span>
+            <h3>{bookedVenues}</h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-building"></i>
+          </div>
+
+          <div>
+            <span>Available Venues</span>
+            <h3>{availableVenues}</h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-box-seam"></i>
+          </div>
+
+          <div>
+            <span>Allocated Resources</span>
+            <h3>{allocatedResources}</h3>
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-section mt-4">
         <div className="section-header">
           <div>
             <h4>Pending Event Requests</h4>
@@ -115,7 +210,8 @@ function EstateDashboard() {
             </h5>
 
             <p className="text-muted">
-              All submitted event requests have been reviewed.
+              All submitted event requests have been
+              reviewed.
             </p>
           </div>
         ) : (
@@ -128,37 +224,51 @@ function EstateDashboard() {
                   <th>Date</th>
                   <th>Venue</th>
                   <th>Participants</th>
+                  <th>Resources</th>
                   <th>Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {recentPending.map((event) => (
-                  <tr key={event.id}>
-                    <td>{event.title}</td>
+                {recentPending.map((event) => {
+                  const resourceCount =
+                    Number(event.chairs || 0) +
+                    Number(event.microphones || 0) +
+                    Number(event.projectors || 0);
 
-                    <td>
-                      {event.eventType || "-"}
-                    </td>
+                  return (
+                    <tr key={event.id}>
+                      <td>{event.title}</td>
 
-                    <td>{event.date}</td>
+                      <td>
+                        {event.eventType || "-"}
+                      </td>
 
-                    <td>{event.venue}</td>
+                      <td>
+                        {event.date || "-"}
+                      </td>
 
-                    <td>
-                      {event.expectedParticipants}
-                    </td>
+                      <td>
+                        {event.venue || "-"}
+                      </td>
 
-                    <td>
-                      <Link
-                        to={`/estate/pending/${event.id}`}
-                        className="btn btn-sm primary-action"
-                      >
-                        Review
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        {event.expectedParticipants || 0}
+                      </td>
+
+                      <td>{resourceCount}</td>
+
+                      <td>
+                        <Link
+                          to={`/estate/pending/${event.id}`}
+                          className="btn btn-sm primary-action"
+                        >
+                          Review
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

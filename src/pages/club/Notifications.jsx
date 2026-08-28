@@ -1,79 +1,287 @@
+import { useEffect, useState } from "react";
+
+import { getLoggedInUser } from "../../utils/authStore";
+
 function Notifications() {
-  const notifications = [
-    {
-      id: 1,
-      title: "Event Approved",
-      message: "Your Web Development Workshop has been approved.",
-      time: "10 minutes ago",
-      type: "success",
-      icon: "bi bi-check-circle",
-    },
-    {
-      id: 2,
-      title: "Event Pending",
-      message:
-        "AI Awareness Seminar is waiting for Estate Manager review.",
-      time: "1 hour ago",
-      type: "warning",
-      icon: "bi bi-hourglass-split",
-    },
-    {
-      id: 3,
-      title: "Venue Update",
-      message:
-        "Main Hall is available for your requested event date.",
-      time: "Yesterday",
-      type: "info",
-      icon: "bi bi-building",
-    },
-    {
-      id: 4,
-      title: "Event Rejected",
-      message:
-        "Photography Club Meeting was rejected. Please review the request.",
-      time: "2 days ago",
-      type: "danger",
-      icon: "bi bi-x-circle",
-    },
-  ];
+  const [notifications, setNotifications] = useState([]);
+
+  const loggedInUser = getLoggedInUser();
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const getStoredNotifications = () => {
+    try {
+      return (
+        JSON.parse(
+          localStorage.getItem("campus_notifications")
+        ) || []
+      );
+    } catch {
+      return [];
+    }
+  };
+
+  const isMyNotification = (notification) => {
+    /*
+     * Legacy support:
+     * Old notifications created before
+     * ownership support are still shown.
+     */
+    const hasNoOwner =
+      notification.userId === undefined &&
+      notification.userEmail === undefined;
+
+    if (hasNoOwner) {
+      return true;
+    }
+
+    const matchesUserId =
+      notification.userId !== undefined &&
+      notification.userId !== null &&
+      String(notification.userId) ===
+        String(loggedInUser?.id);
+
+    const matchesEmail =
+      notification.userEmail &&
+      loggedInUser?.email &&
+      notification.userEmail.toLowerCase() ===
+        loggedInUser.email.toLowerCase();
+
+    return matchesUserId || matchesEmail;
+  };
+
+  const loadNotifications = () => {
+    const storedNotifications =
+      getStoredNotifications();
+
+    const myNotifications =
+      storedNotifications.filter(
+        isMyNotification
+      );
+
+    setNotifications(myNotifications);
+  };
+
+  const markAllAsRead = () => {
+    const storedNotifications =
+      getStoredNotifications();
+
+    /*
+     * Only this Club Representative's
+     * notifications are marked as read.
+     *
+     * Other users' notifications remain
+     * unchanged.
+     */
+    const updatedAllNotifications =
+      storedNotifications.map(
+        (notification) => {
+          if (
+            isMyNotification(notification)
+          ) {
+            return {
+              ...notification,
+              read: true,
+            };
+          }
+
+          return notification;
+        }
+      );
+
+    localStorage.setItem(
+      "campus_notifications",
+      JSON.stringify(
+        updatedAllNotifications
+      )
+    );
+
+    const myUpdatedNotifications =
+      updatedAllNotifications.filter(
+        isMyNotification
+      );
+
+    setNotifications(
+      myUpdatedNotifications
+    );
+  };
+
+  const getIcon = (type) => {
+    if (type === "success") {
+      return "bi bi-check-circle";
+    }
+
+    if (type === "danger") {
+      return "bi bi-x-circle";
+    }
+
+    if (type === "warning") {
+      return "bi bi-hourglass-split";
+    }
+
+    return "bi bi-bell";
+  };
+
+  const formatTime = (dateValue) => {
+    if (!dateValue) {
+      return "";
+    }
+
+    const createdDate =
+      new Date(dateValue);
+
+    if (
+      Number.isNaN(
+        createdDate.getTime()
+      )
+    ) {
+      return "";
+    }
+
+    const now = new Date();
+
+    const difference =
+      now.getTime() -
+      createdDate.getTime();
+
+    const minutes = Math.floor(
+      difference / (1000 * 60)
+    );
+
+    const hours = Math.floor(
+      difference /
+        (1000 * 60 * 60)
+    );
+
+    const days = Math.floor(
+      difference /
+        (1000 * 60 * 60 * 24)
+    );
+
+    if (minutes < 1) {
+      return "Just now";
+    }
+
+    if (minutes < 60) {
+      return `${minutes} minute${
+        minutes === 1 ? "" : "s"
+      } ago`;
+    }
+
+    if (hours < 24) {
+      return `${hours} hour${
+        hours === 1 ? "" : "s"
+      } ago`;
+    }
+
+    if (days === 1) {
+      return "Yesterday";
+    }
+
+    return `${days} days ago`;
+  };
 
   return (
     <div>
       <div className="dashboard-title">
         <div>
           <h2>Notifications</h2>
-          <p>View updates about your events and requests.</p>
+
+          <p>
+            View updates about your
+            events and requests.
+          </p>
         </div>
 
-        <button className="btn btn-outline-secondary">
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={markAllAsRead}
+          disabled={
+            notifications.length === 0
+          }
+        >
           <i className="bi bi-check2-all me-2"></i>
           Mark All as Read
         </button>
       </div>
 
       <div className="notification-list">
-        {notifications.map((notification) => (
-          <div
-            className="notification-card"
-            key={notification.id}
-          >
-            <div
-              className={`notification-type-icon ${notification.type}`}
-            >
-              <i className={notification.icon}></i>
-            </div>
+        {notifications.length === 0 ? (
+          <div className="event-detail-card text-center py-5">
+            <i
+              className="bi bi-bell"
+              style={{
+                fontSize: "40px",
+              }}
+            ></i>
 
-            <div className="notification-content">
-              <div className="notification-heading">
-                <h4>{notification.title}</h4>
+            <h4 className="mt-3">
+              No Notifications
+            </h4>
 
-                <span>{notification.time}</span>
-              </div>
-
-              <p>{notification.message}</p>
-            </div>
+            <p className="text-muted mb-0">
+              New event updates will
+              appear here.
+            </p>
           </div>
-        ))}
+        ) : (
+          notifications.map(
+            (notification) => (
+              <div
+                className={`notification-card ${
+                  notification.read
+                    ? "read"
+                    : ""
+                }`}
+                key={
+                  notification.id
+                }
+              >
+                <div
+                  className={`notification-type-icon ${
+                    notification.type ||
+                    "info"
+                  }`}
+                >
+                  <i
+                    className={getIcon(
+                      notification.type
+                    )}
+                  ></i>
+                </div>
+
+                <div className="notification-content">
+                  <div className="notification-heading">
+                    <h4>
+                      {notification.title ||
+                        "Notification"}
+                    </h4>
+
+                    <span>
+                      {formatTime(
+                        notification.createdAt
+                      )}
+                    </span>
+                  </div>
+
+                  <p>
+                    {notification.message ||
+                      "No notification message."}
+                  </p>
+
+                  {!notification.read && (
+                    <span className="badge bg-primary">
+                      New
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          )
+        )}
       </div>
     </div>
   );

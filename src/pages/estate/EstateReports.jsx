@@ -11,21 +11,157 @@ import {
   Cell,
 } from "recharts";
 
+import { getEvents } from "../../utils/eventStore";
+import { getResources } from "../../utils/resourceStore";
+
 function EstateReports() {
-  const monthlyData = [
-    { month: "Mar", approved: 4, rejected: 1 },
-    { month: "Apr", approved: 6, rejected: 2 },
-    { month: "May", approved: 5, rejected: 1 },
-    { month: "Jun", approved: 8, rejected: 2 },
-    { month: "Jul", approved: 7, rejected: 1 },
-    { month: "Aug", approved: 10, rejected: 3 },
+  const events = getEvents();
+  const resources = getResources();
+
+  const approvedEvents = events.filter(
+    (event) => event.status === "Approved"
+  );
+
+  const rejectedEvents = events.filter(
+    (event) => event.status === "Rejected"
+  );
+
+  const cancelledEvents = events.filter(
+    (event) => event.status === "Cancelled"
+  );
+
+  const pendingEvents = events.filter(
+    (event) => event.status === "Pending"
+  );
+
+  const totalApproved = approvedEvents.length;
+  const totalRejected = rejectedEvents.length;
+
+  const venueBookings = approvedEvents.filter(
+    (event) => event.venue
+  ).length;
+
+  const resourceAllocations =
+    approvedEvents.reduce((total, event) => {
+      return (
+        total +
+        Number(event.chairs || 0) +
+        Number(event.microphones || 0) +
+        Number(event.projectors || 0)
+      );
+    }, 0);
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
 
-  const venueData = [
-    { name: "Main Hall", value: 10 },
-    { name: "Conference Hall", value: 8 },
-    { name: "Auditorium", value: 6 },
-    { name: "Room B12", value: 5 },
+  const monthlyMap = {};
+
+  events.forEach((event) => {
+    if (!event.date) {
+      return;
+    }
+
+    const date = new Date(
+      `${event.date}T00:00:00`
+    );
+
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const month =
+      monthNames[date.getMonth()];
+
+    if (!monthlyMap[month]) {
+      monthlyMap[month] = {
+        month,
+        approved: 0,
+        rejected: 0,
+      };
+    }
+
+    if (event.status === "Approved") {
+      monthlyMap[month].approved += 1;
+    }
+
+    if (event.status === "Rejected") {
+      monthlyMap[month].rejected += 1;
+    }
+  });
+
+  const monthlyData = monthNames
+    .map((month) => {
+      return (
+        monthlyMap[month] || {
+          month,
+          approved: 0,
+          rejected: 0,
+        }
+      );
+    })
+    .filter(
+      (item) =>
+        item.approved > 0 ||
+        item.rejected > 0
+    );
+
+  const venueUsageMap = {};
+
+  approvedEvents.forEach((event) => {
+    if (!event.venue) {
+      return;
+    }
+
+    venueUsageMap[event.venue] =
+      (venueUsageMap[event.venue] || 0) + 1;
+  });
+
+  const venueData = Object.entries(
+    venueUsageMap
+  ).map(([name, value]) => ({
+    name,
+    value,
+  }));
+
+  const totalResources = resources.reduce(
+    (total, resource) =>
+      total + Number(resource.total || 0),
+    0
+  );
+
+  const availableResources =
+    resources.reduce(
+      (total, resource) =>
+        total +
+        Number(resource.available || 0),
+      0
+    );
+
+  const currentlyAllocatedResources =
+    Math.max(
+      totalResources - availableResources,
+      0
+    );
+
+  const pieColors = [
+    "#0f766e",
+    "#14b8a6",
+    "#2dd4bf",
+    "#5eead4",
+    "#99f6e4",
+    "#115e59",
   ];
 
   return (
@@ -33,8 +169,10 @@ function EstateReports() {
       <div className="dashboard-title">
         <div>
           <h2>Estate Reports</h2>
+
           <p>
-            View approval, venue usage, and resource management statistics.
+            View approval, venue usage, and
+            resource management statistics.
           </p>
         </div>
       </div>
@@ -47,7 +185,7 @@ function EstateReports() {
 
           <div>
             <span>Total Approved</span>
-            <h3>40</h3>
+            <h3>{totalApproved}</h3>
           </div>
         </div>
 
@@ -58,7 +196,7 @@ function EstateReports() {
 
           <div>
             <span>Total Rejected</span>
-            <h3>10</h3>
+            <h3>{totalRejected}</h3>
           </div>
         </div>
 
@@ -69,7 +207,7 @@ function EstateReports() {
 
           <div>
             <span>Venue Bookings</span>
-            <h3>29</h3>
+            <h3>{venueBookings}</h3>
           </div>
         </div>
 
@@ -79,8 +217,13 @@ function EstateReports() {
           </div>
 
           <div>
-            <span>Resource Allocations</span>
-            <h3>74</h3>
+            <span>
+              Currently Allocated Resources
+            </span>
+
+            <h3>
+              {currentlyAllocatedResources}
+            </h3>
           </div>
         </div>
       </div>
@@ -90,56 +233,186 @@ function EstateReports() {
           <div className="section-header">
             <div>
               <h4>Approval Activity</h4>
-              <p>Approved and rejected events by month.</p>
+
+              <p>
+                Approved and rejected events by month.
+              </p>
             </div>
           </div>
 
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="approved" fill="#0f766e" />
-              <Bar dataKey="rejected" fill="#b91c1c" />
-            </BarChart>
-          </ResponsiveContainer>
+          {monthlyData.length === 0 ? (
+            <div className="text-center text-muted py-5">
+              No approval activity available.
+            </div>
+          ) : (
+            <ResponsiveContainer
+              width="100%"
+              height={320}
+            >
+              <BarChart data={monthlyData}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                />
+
+                <XAxis dataKey="month" />
+
+                <YAxis
+                  allowDecimals={false}
+                />
+
+                <Tooltip />
+
+                <Bar
+                  dataKey="approved"
+                  fill="#0f766e"
+                />
+
+                <Bar
+                  dataKey="rejected"
+                  fill="#b91c1c"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="report-card">
           <div className="section-header">
             <div>
               <h4>Venue Usage</h4>
-              <p>Most frequently used venues.</p>
+
+              <p>
+                Most frequently used venues.
+              </p>
             </div>
           </div>
 
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart>
-              <Pie
-                data={venueData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label
-              >
-                {venueData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={
-                      ["#0f766e", "#14b8a6", "#2dd4bf", "#5eead4"][
-                        index % 4
-                      ]
-                    }
-                  />
-                ))}
-              </Pie>
+          {venueData.length === 0 ? (
+            <div className="text-center text-muted py-5">
+              No approved venue bookings available.
+            </div>
+          ) : (
+            <ResponsiveContainer
+              width="100%"
+              height={320}
+            >
+              <PieChart>
+                <Pie
+                  data={venueData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                >
+                  {venueData.map(
+                    (entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          pieColors[
+                            index %
+                              pieColors.length
+                          ]
+                        }
+                      />
+                    )
+                  )}
+                </Pie>
 
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      <div className="dashboard-section mt-4">
+        <div className="section-header">
+          <div>
+            <h4>
+              Management Summary
+            </h4>
+
+            <p>
+              Current system status overview.
+            </p>
+          </div>
+        </div>
+
+        <div className="report-summary-list">
+          <div className="report-summary-item">
+            <span>Pending Requests</span>
+
+            <strong>
+              {pendingEvents.length}
+            </strong>
+          </div>
+
+          <div className="report-summary-item">
+            <span>Approved Events</span>
+
+            <strong>
+              {approvedEvents.length}
+            </strong>
+          </div>
+
+          <div className="report-summary-item">
+            <span>Rejected Events</span>
+
+            <strong>
+              {rejectedEvents.length}
+            </strong>
+          </div>
+
+          <div className="report-summary-item">
+            <span>Cancelled Events</span>
+
+            <strong>
+              {cancelledEvents.length}
+            </strong>
+          </div>
+
+          <div className="report-summary-item">
+            <span>
+              Total Resource Quantity
+            </span>
+
+            <strong>
+              {totalResources}
+            </strong>
+          </div>
+
+          <div className="report-summary-item">
+            <span>
+              Available Resources
+            </span>
+
+            <strong>
+              {availableResources}
+            </strong>
+          </div>
+
+          <div className="report-summary-item">
+            <span>
+              Currently Allocated
+            </span>
+
+            <strong>
+              {currentlyAllocatedResources}
+            </strong>
+          </div>
+
+          <div className="report-summary-item">
+            <span>
+              Total Resource Requests
+            </span>
+
+            <strong>
+              {resourceAllocations}
+            </strong>
+          </div>
         </div>
       </div>
     </div>

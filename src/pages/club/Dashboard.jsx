@@ -1,44 +1,157 @@
 import { Link } from "react-router-dom";
-import { getEvents } from "../../utils/eventStore";
+
+import {
+  getEvents,
+  getMyEvents,
+} from "../../utils/eventStore";
+
+import { getEventAttendance } from "../../utils/attendanceStore";
+
+import { getUnreadNotificationCount } from "../../utils/notificationStore";
 
 function Dashboard() {
-  const events = getEvents();
+  /*
+   * Get events owned by the currently
+   * logged-in Club Representative.
+   */
+  const myEvents = getMyEvents();
 
+  /*
+   * Legacy support:
+   * Events created before ownership support
+   * do not have createdBy.
+   */
+  const legacyEvents = getEvents().filter(
+    (event) =>
+      event.createdBy === undefined ||
+      event.createdBy === null
+  );
+
+  const events = [
+    ...myEvents,
+
+    ...legacyEvents.filter(
+      (legacyEvent) =>
+        !myEvents.some(
+          (myEvent) =>
+            String(myEvent.id) ===
+            String(legacyEvent.id)
+        )
+    ),
+  ];
+
+  /*
+   * Event statistics
+   */
   const totalEvents = events.length;
 
   const pendingEvents = events.filter(
-    (event) => event.status === "Pending"
+    (event) =>
+      event.status === "Pending"
   ).length;
 
   const approvedEvents = events.filter(
-    (event) => event.status === "Approved"
+    (event) =>
+      event.status === "Approved"
   ).length;
 
+  const rejectedEvents = events.filter(
+    (event) =>
+      event.status === "Rejected"
+  ).length;
+
+  const cancelledEvents = events.filter(
+    (event) =>
+      event.status === "Cancelled"
+  ).length;
+
+  /*
+   * Expected participants
+   */
   const totalParticipants = events.reduce(
     (total, event) =>
-      total + Number(event.expectedParticipants || 0),
+      total +
+      Number(
+        event.expectedParticipants || 0
+      ),
     0
   );
 
+  /*
+   * Actual attendance
+   */
+  const totalCheckedIn = events.reduce(
+    (total, event) =>
+      total +
+      getEventAttendance(
+        event.id
+      ).length,
+    0
+  );
+
+  /*
+   * Current logged-in user's
+   * unread notifications only
+   */
+  const unreadNotifications =
+    getUnreadNotificationCount();
+
+  /*
+   * Latest five events
+   */
   const recentEvents = [...events]
-    .reverse()
+    .sort((a, b) => {
+      const aTime = new Date(
+        a.createdAt ||
+          a.date ||
+          0
+      ).getTime();
+
+      const bTime = new Date(
+        b.createdAt ||
+          b.date ||
+          0
+      ).getTime();
+
+      return bTime - aTime;
+    })
     .slice(0, 5);
 
-  const getStatusClass = (status) => {
-    if (!status) {
+  const getStatusClass = (
+    status
+  ) => {
+    if (
+      status === "Approved"
+    ) {
+      return "approved";
+    }
+
+    if (
+      status === "Rejected" ||
+      status === "Cancelled"
+    ) {
+      return "rejected";
+    }
+
+    if (
+      status === "Draft"
+    ) {
       return "draft";
     }
 
-    return status.toLowerCase();
+    return "pending";
   };
 
   return (
     <div>
+      {/* Page Heading */}
       <div className="dashboard-title">
         <div>
           <h2>Dashboard</h2>
+
           <p>
-            Overview of your campus events and activities.
+            Overview of your campus events and
+            activities.
           </p>
         </div>
 
@@ -51,6 +164,7 @@ function Dashboard() {
         </Link>
       </div>
 
+      {/* Statistics Row 1 */}
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">
@@ -58,8 +172,13 @@ function Dashboard() {
           </div>
 
           <div>
-            <span>Total Events</span>
-            <h3>{totalEvents}</h3>
+            <span>
+              Total Events
+            </span>
+
+            <h3>
+              {totalEvents}
+            </h3>
           </div>
         </div>
 
@@ -69,8 +188,13 @@ function Dashboard() {
           </div>
 
           <div>
-            <span>Pending Events</span>
-            <h3>{pendingEvents}</h3>
+            <span>
+              Pending Events
+            </span>
+
+            <h3>
+              {pendingEvents}
+            </h3>
           </div>
         </div>
 
@@ -80,28 +204,111 @@ function Dashboard() {
           </div>
 
           <div>
-            <span>Approved Events</span>
-            <h3>{approvedEvents}</h3>
+            <span>
+              Approved Events
+            </span>
+
+            <h3>
+              {approvedEvents}
+            </h3>
           </div>
         </div>
 
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-person-check"></i>
+          </div>
+
+          <div>
+            <span>
+              Actual Check-Ins
+            </span>
+
+            <h3>
+              {totalCheckedIn}
+            </h3>
+          </div>
+        </div>
+      </div>
+
+      {/* Statistics Row 2 */}
+      <div className="stats-grid mt-4">
         <div className="stat-card">
           <div className="stat-icon">
             <i className="bi bi-people"></i>
           </div>
 
           <div>
-            <span>Expected Participants</span>
-            <h3>{totalParticipants}</h3>
+            <span>
+              Expected Participants
+            </span>
+
+            <h3>
+              {totalParticipants}
+            </h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-x-circle"></i>
+          </div>
+
+          <div>
+            <span>
+              Rejected Events
+            </span>
+
+            <h3>
+              {rejectedEvents}
+            </h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-calendar-x"></i>
+          </div>
+
+          <div>
+            <span>
+              Cancelled Events
+            </span>
+
+            <h3>
+              {cancelledEvents}
+            </h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-bell"></i>
+          </div>
+
+          <div>
+            <span>
+              Unread Notifications
+            </span>
+
+            <h3>
+              {unreadNotifications}
+            </h3>
           </div>
         </div>
       </div>
 
-      <div className="dashboard-section">
+      {/* Recent Events */}
+      <div className="dashboard-section mt-4">
         <div className="section-header">
           <div>
-            <h4>Recent Events</h4>
-            <p>Your latest event requests.</p>
+            <h4>
+              Recent Events
+            </h4>
+
+            <p>
+              Your latest event requests.
+            </p>
           </div>
 
           <Link
@@ -127,7 +334,8 @@ function Dashboard() {
             </h5>
 
             <p className="text-muted">
-              Create your first campus event request.
+              Create your first campus event
+              request.
             </p>
 
             <Link
@@ -142,43 +350,91 @@ function Dashboard() {
             <table className="table dashboard-table">
               <thead>
                 <tr>
-                  <th>Event</th>
-                  <th>Date</th>
-                  <th>Venue</th>
-                  <th>Participants</th>
-                  <th>Status</th>
-                  <th>Action</th>
+                  <th>
+                    Event
+                  </th>
+
+                  <th>
+                    Date
+                  </th>
+
+                  <th>
+                    Venue
+                  </th>
+
+                  <th>
+                    Participants
+                  </th>
+
+                  <th>
+                    Checked In
+                  </th>
+
+                  <th>
+                    Status
+                  </th>
+
+                  <th>
+                    Action
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
-                {recentEvents.map((event) => (
-                  <tr key={event.id}>
-                    <td>{event.title}</td>
-                    <td>{event.date}</td>
-                    <td>{event.venue}</td>
-                    <td>{event.expectedParticipants}</td>
+                {recentEvents.map(
+                  (event) => (
+                    <tr
+                      key={event.id}
+                    >
+                      <td>
+                        {event.title}
+                      </td>
 
-                    <td>
-                      <span
-                        className={`status ${getStatusClass(
-                          event.status
-                        )}`}
-                      >
-                        {event.status}
-                      </span>
-                    </td>
+                      <td>
+                        {event.date ||
+                          "-"}
+                      </td>
 
-                    <td>
-                      <Link
-                        to={`/events/${event.id}`}
-                        className="btn btn-sm btn-outline-secondary"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        {event.venue ||
+                          "-"}
+                      </td>
+
+                      <td>
+                        {event.expectedParticipants ||
+                          0}
+                      </td>
+
+                      <td>
+                        {
+                          getEventAttendance(
+                            event.id
+                          ).length
+                        }
+                      </td>
+
+                      <td>
+                        <span
+                          className={`status ${getStatusClass(
+                            event.status
+                          )}`}
+                        >
+                          {event.status ||
+                            "Pending"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <Link
+                          to={`/events/${event.id}`}
+                          className="btn btn-sm btn-outline-secondary"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>

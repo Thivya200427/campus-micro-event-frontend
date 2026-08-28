@@ -1,54 +1,41 @@
+import { getResources } from "../../utils/resourceStore";
+
 function Resources() {
-  const resources = [
-    {
-      id: 1,
-      name: "Chairs",
-      category: "Furniture",
-      total: 300,
-      available: 220,
-      icon: "bi bi-person-workspace",
-    },
-    {
-      id: 2,
-      name: "Projectors",
-      category: "Equipment",
-      total: 8,
-      available: 5,
-      icon: "bi bi-projector",
-    },
-    {
-      id: 3,
-      name: "Microphones",
-      category: "Audio",
-      total: 12,
-      available: 8,
-      icon: "bi bi-mic",
-    },
-    {
-      id: 4,
-      name: "Speakers",
-      category: "Audio",
-      total: 10,
-      available: 6,
-      icon: "bi bi-speaker",
-    },
-    {
-      id: 5,
-      name: "Tables",
-      category: "Furniture",
-      total: 40,
-      available: 25,
-      icon: "bi bi-layout-three-columns",
-    },
-    {
-      id: 6,
-      name: "Extension Cables",
-      category: "Electrical",
-      total: 20,
-      available: 15,
-      icon: "bi bi-plug",
-    },
-  ];
+  const resources = getResources();
+
+  const getResourceIcon = (name, category) => {
+    const resourceName = name?.toLowerCase() || "";
+    const resourceCategory = category?.toLowerCase() || "";
+
+    if (resourceName.includes("chair")) {
+      return "bi bi-person-workspace";
+    }
+
+    if (resourceName.includes("projector")) {
+      return "bi bi-projector";
+    }
+
+    if (resourceName.includes("microphone")) {
+      return "bi bi-mic";
+    }
+
+    if (resourceName.includes("speaker")) {
+      return "bi bi-speaker";
+    }
+
+    if (resourceName.includes("table")) {
+      return "bi bi-layout-three-columns";
+    }
+
+    if (
+      resourceName.includes("cable") ||
+      resourceCategory.includes("electrical")
+    ) {
+      return "bi bi-plug";
+    }
+
+    return "bi bi-box-seam";
+  };
 
   return (
     <div>
@@ -59,48 +46,89 @@ function Resources() {
         </div>
       </div>
 
-      <div className="resource-grid">
-        {resources.map((resource) => (
-          <div className="resource-card" key={resource.id}>
-            <div className="resource-card-top">
-              <div className="resource-card-icon">
-                <i className={resource.icon}></i>
-              </div>
+      {resources.length === 0 ? (
+        <div className="dashboard-section text-center py-5">
+          <i
+            className="bi bi-box-seam"
+            style={{ fontSize: "40px" }}
+          ></i>
 
-              <span className="resource-category">
-                {resource.category}
-              </span>
-            </div>
+          <h4 className="mt-3">
+            No Resources Available
+          </h4>
 
-            <h4>{resource.name}</h4>
+          <p className="text-muted mb-0">
+            Campus resources will appear here.
+          </p>
+        </div>
+      ) : (
+        <div className="resource-grid">
+          {resources.map((resource) => {
+            const total = Number(resource.total || 0);
+            const available = Number(resource.available || 0);
 
-            <div className="resource-counts">
-              <div>
-                <span>Total</span>
-                <strong>{resource.total}</strong>
-              </div>
+            const availabilityPercentage =
+              total > 0
+                ? Math.min((available / total) * 100, 100)
+                : 0;
 
-              <div>
-                <span>Available</span>
-                <strong>{resource.available}</strong>
-              </div>
-            </div>
-
-            <div className="availability-bar">
+            return (
               <div
-                className="availability-progress"
-                style={{
-                  width: `${(resource.available / resource.total) * 100}%`,
-                }}
-              ></div>
-            </div>
+                className="resource-card"
+                key={resource.id}
+              >
+                <div className="resource-card-top">
+                  <div className="resource-card-icon">
+                    <i
+                      className={getResourceIcon(
+                        resource.name,
+                        resource.category
+                      )}
+                    ></i>
+                  </div>
 
-            <button className="btn resource-request-btn w-100">
-              Request Resource
-            </button>
-          </div>
-        ))}
-      </div>
+                  <span className="resource-category">
+                    {resource.category}
+                  </span>
+                </div>
+
+                <h4>{resource.name}</h4>
+
+                <div className="resource-counts">
+                  <div>
+                    <span>Total</span>
+                    <strong>{total}</strong>
+                  </div>
+
+                  <div>
+                    <span>Available</span>
+                    <strong>{available}</strong>
+                  </div>
+                </div>
+
+                <div className="availability-bar">
+                  <div
+                    className="availability-progress"
+                    style={{
+                      width: `${availabilityPercentage}%`,
+                    }}
+                  ></div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn resource-request-btn w-100"
+                  disabled={available <= 0}
+                >
+                  {available > 0
+                    ? "Request Resource"
+                    : "Not Available"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

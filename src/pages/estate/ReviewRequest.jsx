@@ -10,6 +10,16 @@ import {
   saveEvents,
 } from "../../utils/eventStore";
 
+import {
+  getResources,
+  saveResources,
+} from "../../utils/resourceStore";
+
+import {
+  getVenues,
+  saveVenues,
+} from "../../utils/venueStore";
+
 function ReviewRequest() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -28,13 +38,16 @@ function ReviewRequest() {
         <div className="dashboard-title">
           <div>
             <h2>Event Not Found</h2>
-            <p>The selected event request could not be found.</p>
+            <p>
+              The selected event request could not be found.
+            </p>
           </div>
 
           <Link
             to="/estate/pending"
             className="btn btn-outline-secondary"
           >
+            <i className="bi bi-arrow-left me-2"></i>
             Back
           </Link>
         </div>
@@ -42,50 +55,316 @@ function ReviewRequest() {
     );
   }
 
-  const updateEventStatus = (status) => {
-    const updatedEvents = events.map((item) => {
-      if (String(item.id) === String(id)) {
-        return {
-          ...item,
-          status,
-          managerRemarks: remarks,
-          reviewedAt: new Date().toISOString(),
-        };
-      }
+  const createNotification = (status) => {
+    let notifications = [];
 
-      return item;
-    });
+    try {
+      notifications =
+        JSON.parse(
+          localStorage.getItem("campus_notifications")
+        ) || [];
+    } catch {
+      notifications = [];
+    }
+
+    const newNotification = {
+      id: Date.now(),
+
+      eventId: event.id,
+
+      title:
+        status === "Approved"
+          ? "Event Approved"
+          : "Event Rejected",
+
+      message:
+        status === "Approved"
+          ? `${event.title} has been approved by the Estate Manager.`
+          : `${event.title} has been rejected by the Estate Manager.${
+              remarks.trim()
+                ? ` Reason: ${remarks.trim()}`
+                : ""
+            }`,
+
+      type:
+        status === "Approved"
+          ? "success"
+          : "danger",
+
+      status,
+
+      read: false,
+
+      createdAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(
+      "campus_notifications",
+      JSON.stringify([
+        newNotification,
+        ...notifications,
+      ])
+    );
+  };
+
+  const updateEventStatus = (
+    status,
+    extraData = {}
+  ) => {
+    const reviewedAt =
+      new Date().toISOString();
+
+    const updatedEvents = events.map(
+      (item) => {
+        if (
+          String(item.id) === String(id)
+        ) {
+          return {
+            ...item,
+
+            status,
+
+            managerRemarks:
+              remarks.trim(),
+
+            reviewedAt,
+
+            ...extraData,
+          };
+        }
+
+        return item;
+      }
+    );
 
     saveEvents(updatedEvents);
+
+    createNotification(status);
+  };
+
+  const getRequestedResourceQuantity = (
+    resourceName
+  ) => {
+    const name =
+      resourceName.toLowerCase();
+
+    if (name === "chairs") {
+      return Number(event.chairs || 0);
+    }
+
+    if (name === "microphones") {
+      return Number(
+        event.microphones || 0
+      );
+    }
+
+    if (name === "projectors") {
+      return Number(
+        event.projectors || 0
+      );
+    }
+
+    return 0;
+  };
+
+  const checkResourceAvailability = () => {
+    const resources = getResources();
+
+    for (const resource of resources) {
+      const requested =
+        getRequestedResourceQuantity(
+          resource.name
+        );
+
+      if (requested <= 0) {
+        continue;
+      }
+
+      const available =
+        Number(resource.available || 0);
+
+      if (requested > available) {
+        alert(
+          `Cannot approve this event. Only ${available} ${resource.name} are available, but ${requested} were requested.`
+        );
+
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const checkVenueAvailability = () => {
+    const venues = getVenues();
+
+    const selectedVenue = venues.find(
+      (venue) =>
+        venue.name === event.venue
+    );
+
+    if (!selectedVenue) {
+      alert(
+        "The selected venue could not be found."
+      );
+
+      return false;
+    }
+
+    if (
+      selectedVenue.status === "Booked" &&
+      !event.venueAllocated
+    ) {
+      alert(
+        `${selectedVenue.name} is currently booked. Please choose another venue or update the venue status.`
+      );
+
+      return false;
+    }
+
+    return true;
+  };
+
+  const allocateResources = () => {
+    const resources = getResources();
+
+    const updatedResources =
+      resources.map((resource) => {
+        const requested =
+          getRequestedResourceQuantity(
+            resource.name
+          );
+
+        if (requested <= 0) {
+          return resource;
+        }
+
+        return {
+          ...resource,
+
+          available: Math.max(
+            Number(
+              resource.available || 0
+            ) - requested,
+            0
+          ),
+        };
+      });
+
+    saveResources(updatedResources);
+  };
+
+  const bookVenue = () => {
+    const venues = getVenues();
+
+    const updatedVenues =
+      venues.map((venue) => {
+        if (
+          venue.name === event.venue
+        ) {
+          return {
+            ...venue,
+
+            status: "Booked",
+          };
+        }
+
+        return venue;
+      });
+
+    saveVenues(updatedVenues);
   };
 
   const handleApprove = () => {
-    updateEventStatus("Approved");
+    if (
+      event.status === "Approved" &&
+      event.resourcesAllocated &&
+      event.venueAllocated
+    ) {
+      alert(
+        "This event has already been approved and allocated."
+      );
 
-    alert("Event approved successfully.");
+      navigate("/estate/approved");
+
+      return;
+    }
+
+    if (!checkVenueAvailability()) {
+      return;
+    }
+
+    if (!checkResourceAvailability()) {
+      return;
+    }
+
+    allocateResources();
+
+    bookVenue();
+
+    updateEventStatus(
+      "Approved",
+      {
+        resourcesAllocated: true,
+
+        resourcesAllocatedAt:
+          new Date().toISOString(),
+
+        venueAllocated: true,
+
+        venueAllocatedAt:
+          new Date().toISOString(),
+      }
+    );
+
+    alert(
+      "Event approved. Venue and resources allocated successfully."
+    );
 
     navigate("/estate/approved");
   };
 
   const handleReject = () => {
     if (!remarks.trim()) {
-      alert("Please enter a rejection reason.");
+      alert(
+        "Please enter a rejection reason before rejecting the event."
+      );
+
       return;
     }
 
     updateEventStatus("Rejected");
 
-    alert("Event rejected successfully.");
+    alert(
+      "Event rejected successfully."
+    );
 
     navigate("/estate/rejected");
+  };
+
+  const getStatusClass = () => {
+    if (event.status === "Approved") {
+      return "approved";
+    }
+
+    if (event.status === "Rejected") {
+      return "rejected";
+    }
+
+    return "pending";
   };
 
   return (
     <div>
       <div className="dashboard-title">
         <div>
-          <h2>Review Event Request</h2>
-          <p>Review the event details before making a decision.</p>
+          <h2>
+            Review Event Request
+          </h2>
+
+          <p>
+            Review the event details before making a decision.
+          </p>
         </div>
 
         <Link
@@ -108,31 +387,40 @@ function ReviewRequest() {
 
           <div className="detail-row">
             <span>Date</span>
-            <strong>{event.date}</strong>
+            <strong>{event.date || "-"}</strong>
           </div>
 
           <div className="detail-row">
             <span>Time</span>
+
             <strong>
-              {event.startTime || "-"} - {event.endTime || "-"}
+              {event.startTime || "-"} -{" "}
+              {event.endTime || "-"}
             </strong>
           </div>
 
           <div className="detail-row">
             <span>Venue</span>
-            <strong>{event.venue}</strong>
+            <strong>{event.venue || "-"}</strong>
           </div>
 
           <div className="detail-row">
-            <span>Expected Participants</span>
-            <strong>{event.expectedParticipants}</strong>
+            <span>
+              Expected Participants
+            </span>
+
+            <strong>
+              {event.expectedParticipants || 0}
+            </strong>
           </div>
 
           <div className="detail-row">
             <span>Status</span>
 
-            <span className="status pending">
-              {event.status}
+            <span
+              className={`status ${getStatusClass()}`}
+            >
+              {event.status || "Pending"}
             </span>
           </div>
         </div>
@@ -173,20 +461,28 @@ function ReviewRequest() {
         <h4>Description</h4>
 
         <p className="text-muted mb-0">
-          {event.description || "No description provided."}
+          {event.description ||
+            "No description provided."}
         </p>
       </div>
 
       <div className="event-detail-card mt-4">
         <h4>Manager Remarks</h4>
 
+        <p className="text-muted">
+          Add an optional remark when approving.
+          A reason is required when rejecting.
+        </p>
+
         <textarea
           className="form-control"
           rows="4"
-          placeholder="Enter remarks or rejection reason"
+          placeholder="Enter manager remarks or rejection reason"
           value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
-        ></textarea>
+          onChange={(e) =>
+            setRemarks(e.target.value)
+          }
+        />
 
         <div className="review-actions">
           <button

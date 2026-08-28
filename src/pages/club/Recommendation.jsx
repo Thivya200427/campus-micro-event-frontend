@@ -1,46 +1,199 @@
 import { useState } from "react";
 
+import { getEvents } from "../../utils/eventStore";
+import { getVenues } from "../../utils/venueStore";
+import { getResources } from "../../utils/resourceStore";
+import { getEventAttendance } from "../../utils/attendanceStore";
+
 function Recommendation() {
-  const [participants, setParticipants] = useState("");
-  const [eventType, setEventType] = useState("");
+  const approvedEvents = getEvents().filter(
+    (event) => event.status === "Approved"
+  );
+
+  const venues = getVenues();
+  const resources = getResources();
+
+  const [selectedEventId, setSelectedEventId] =
+    useState("");
+
   const [result, setResult] = useState(null);
+
+  const getAvailableResource = (name) => {
+    const resource = resources.find(
+      (item) =>
+        item.name?.toLowerCase() ===
+        name.toLowerCase()
+    );
+
+    return Number(resource?.available || 0);
+  };
 
   const generateRecommendation = (e) => {
     e.preventDefault();
 
-    const count = Number(participants);
-
-    if (!count || count <= 0) {
+    if (!selectedEventId) {
+      alert("Please select an approved event.");
       return;
     }
 
-    let microphones = 1;
-    let projectors = 1;
-    let volunteers = 2;
+    const event = approvedEvents.find(
+      (item) =>
+        String(item.id) ===
+        String(selectedEventId)
+    );
+
+    if (!event) {
+      alert("Selected event could not be found.");
+      return;
+    }
+
+    const expectedParticipants = Number(
+      event.expectedParticipants || 0
+    );
+
+    const attendance =
+      getEventAttendance(event.id);
+
+    const checkedIn = attendance.length;
+
+    const attendancePercentage =
+      expectedParticipants > 0
+        ? Math.round(
+            (checkedIn /
+              expectedParticipants) *
+              100
+          )
+        : 0;
+
+    let predictedAttendance =
+      expectedParticipants;
+
+    if (checkedIn > 0) {
+      predictedAttendance = Math.max(
+        checkedIn,
+        Math.round(
+          expectedParticipants *
+            Math.max(
+              attendancePercentage / 100,
+              0.75
+            )
+        )
+      );
+    }
+
+    const recommendedChairs =
+      Math.ceil(
+        predictedAttendance * 1.05
+      );
+
+    let recommendedMicrophones = 1;
+    let recommendedProjectors = 1;
+    let recommendedVolunteers = 2;
+
+    if (predictedAttendance > 50) {
+      recommendedMicrophones = 2;
+      recommendedVolunteers = 4;
+    }
+
+    if (predictedAttendance > 100) {
+      recommendedMicrophones = 3;
+      recommendedProjectors = 2;
+      recommendedVolunteers = 6;
+    }
+
+    if (predictedAttendance > 200) {
+      recommendedMicrophones = 4;
+      recommendedProjectors = 2;
+      recommendedVolunteers = 8;
+    }
+
     let risk = "Low";
 
-    if (count > 50) {
-      microphones = 2;
-      volunteers = 4;
+    if (attendancePercentage >= 80) {
+      risk = "High";
+    } else if (
+      attendancePercentage >= 50
+    ) {
       risk = "Moderate";
     }
 
-    if (count > 100) {
-      microphones = 3;
-      projectors = 2;
-      volunteers = 6;
-      risk = "High";
+    const suitableVenues = venues
+      .filter(
+        (venue) =>
+          Number(venue.capacity) >=
+          predictedAttendance
+      )
+      .sort(
+        (a, b) =>
+          Number(a.capacity) -
+          Number(b.capacity)
+      );
+
+    const recommendedVenue =
+      suitableVenues.length > 0
+        ? suitableVenues[0]
+        : null;
+
+    const chairsAvailable =
+      getAvailableResource("Chairs");
+
+    const microphonesAvailable =
+      getAvailableResource(
+        "Microphones"
+      );
+
+    const projectorsAvailable =
+      getAvailableResource(
+        "Projectors"
+      );
+
+    const resourceWarnings = [];
+
+    if (
+      recommendedChairs >
+      chairsAvailable
+    ) {
+      resourceWarnings.push(
+        `Only ${chairsAvailable} chairs are currently available.`
+      );
     }
 
-    const chairs = Math.ceil(count * 1.05);
+    if (
+      recommendedMicrophones >
+      microphonesAvailable
+    ) {
+      resourceWarnings.push(
+        `Only ${microphonesAvailable} microphones are currently available.`
+      );
+    }
+
+    if (
+      recommendedProjectors >
+      projectorsAvailable
+    ) {
+      resourceWarnings.push(
+        `Only ${projectorsAvailable} projectors are currently available.`
+      );
+    }
 
     setResult({
-      predictedAttendance: count,
-      chairs,
-      microphones,
-      projectors,
-      volunteers,
+      eventTitle: event.title,
+      eventType: event.eventType,
+      expectedParticipants,
+      checkedIn,
+      attendancePercentage,
+      predictedAttendance,
+      chairs:
+        recommendedChairs,
+      microphones:
+        recommendedMicrophones,
+      projectors:
+        recommendedProjectors,
+      volunteers:
+        recommendedVolunteers,
       risk,
+      recommendedVenue,
+      resourceWarnings,
     });
   };
 
@@ -48,74 +201,81 @@ function Recommendation() {
     <div>
       <div className="dashboard-title">
         <div>
-          <h2>Attendance Recommendation</h2>
+          <h2>
+            Attendance Recommendation
+          </h2>
+
           <p>
-            Generate a simple attendance and resource recommendation.
+            Generate attendance, venue,
+            resource, and crowd recommendations.
           </p>
         </div>
       </div>
 
       <div className="event-details-grid">
         <div className="event-detail-card">
-          <h4>Enter Event Information</h4>
+          <h4>Select Event</h4>
 
-          <form onSubmit={generateRecommendation}>
+          <form
+            onSubmit={
+              generateRecommendation
+            }
+          >
             <div className="mb-3">
               <label className="form-label">
-                Event Type
+                Approved Event
               </label>
 
               <select
                 className="form-select"
-                value={eventType}
-                onChange={(e) => setEventType(e.target.value)}
+                value={
+                  selectedEventId
+                }
+                onChange={(e) => {
+                  setSelectedEventId(
+                    e.target.value
+                  );
+
+                  setResult(null);
+                }}
                 required
               >
                 <option value="">
-                  Select event type
+                  Select approved event
                 </option>
 
-                <option value="Workshop">
-                  Workshop
-                </option>
-
-                <option value="Seminar">
-                  Seminar
-                </option>
-
-                <option value="Club Meeting">
-                  Club Meeting
-                </option>
-
-                <option value="Competition">
-                  Competition
-                </option>
-
-                <option value="Other">
-                  Other
-                </option>
+                {approvedEvents.map(
+                  (event) => (
+                    <option
+                      key={event.id}
+                      value={event.id}
+                    >
+                      {event.title}
+                      {" - "}
+                      {event.date}
+                      {" - "}
+                      {event.venue}
+                    </option>
+                  )
+                )}
               </select>
             </div>
 
-            <div className="mb-3">
-              <label className="form-label">
-                Expected Participants
-              </label>
-
-              <input
-                type="number"
-                className="form-control"
-                placeholder="Example: 80"
-                min="1"
-                value={participants}
-                onChange={(e) => setParticipants(e.target.value)}
-                required
-              />
-            </div>
+            {approvedEvents.length ===
+              0 && (
+              <div className="alert alert-warning">
+                No approved events are
+                available.
+              </div>
+            )}
 
             <button
               type="submit"
               className="btn primary-action w-100"
+              disabled={
+                approvedEvents.length ===
+                0
+              }
             >
               <i className="bi bi-stars me-2"></i>
               Generate Recommendation
@@ -124,37 +284,128 @@ function Recommendation() {
         </div>
 
         <div className="event-detail-card">
-          <h4>Recommendation Result</h4>
+          <h4>
+            Recommendation Result
+          </h4>
 
           {!result ? (
             <p className="text-muted">
-              Enter the event information to generate a recommendation.
+              Select an approved event to
+              generate a recommendation.
             </p>
           ) : (
             <>
               <div className="detail-row">
-                <span>Predicted Attendance</span>
-                <strong>{result.predictedAttendance}</strong>
+                <span>Event</span>
+
+                <strong>
+                  {result.eventTitle}
+                </strong>
               </div>
 
               <div className="detail-row">
-                <span>Recommended Chairs</span>
-                <strong>{result.chairs}</strong>
+                <span>
+                  Expected Participants
+                </span>
+
+                <strong>
+                  {
+                    result.expectedParticipants
+                  }
+                </strong>
               </div>
 
               <div className="detail-row">
-                <span>Microphones</span>
-                <strong>{result.microphones}</strong>
+                <span>
+                  Current Check-In
+                </span>
+
+                <strong>
+                  {result.checkedIn}
+                </strong>
               </div>
 
               <div className="detail-row">
-                <span>Projectors</span>
-                <strong>{result.projectors}</strong>
+                <span>
+                  Attendance Rate
+                </span>
+
+                <strong>
+                  {
+                    result.attendancePercentage
+                  }
+                  %
+                </strong>
               </div>
 
               <div className="detail-row">
-                <span>Volunteers</span>
-                <strong>{result.volunteers}</strong>
+                <span>
+                  Predicted Attendance
+                </span>
+
+                <strong>
+                  {
+                    result.predictedAttendance
+                  }
+                </strong>
+              </div>
+
+              <div className="detail-row">
+                <span>
+                  Recommended Venue
+                </span>
+
+                <strong>
+                  {result.recommendedVenue
+                    ? `${result.recommendedVenue.name} (${result.recommendedVenue.capacity})`
+                    : "No suitable venue"}
+                </strong>
+              </div>
+
+              <div className="detail-row">
+                <span>
+                  Recommended Chairs
+                </span>
+
+                <strong>
+                  {result.chairs}
+                </strong>
+              </div>
+
+              <div className="detail-row">
+                <span>
+                  Microphones
+                </span>
+
+                <strong>
+                  {
+                    result.microphones
+                  }
+                </strong>
+              </div>
+
+              <div className="detail-row">
+                <span>
+                  Projectors
+                </span>
+
+                <strong>
+                  {
+                    result.projectors
+                  }
+                </strong>
+              </div>
+
+              <div className="detail-row">
+                <span>
+                  Volunteers
+                </span>
+
+                <strong>
+                  {
+                    result.volunteers
+                  }
+                </strong>
               </div>
 
               <div className="detail-row">
@@ -164,7 +415,8 @@ function Recommendation() {
                   className={`status ${
                     result.risk === "High"
                       ? "rejected"
-                      : result.risk === "Moderate"
+                      : result.risk ===
+                        "Moderate"
                       ? "pending"
                       : "approved"
                   }`}
@@ -177,12 +429,40 @@ function Recommendation() {
         </div>
       </div>
 
+      {result &&
+        result.resourceWarnings
+          .length > 0 && (
+          <div className="alert alert-warning mt-4">
+            <strong>
+              Resource Availability
+              Warning
+            </strong>
+
+            <ul className="mb-0 mt-2">
+              {result.resourceWarnings.map(
+                (warning, index) => (
+                  <li key={index}>
+                    {warning}
+                  </li>
+                )
+              )}
+            </ul>
+          </div>
+        )}
+
       <div className="event-detail-card mt-4">
-        <h4>Prototype Notice</h4>
+        <h4>
+          Decision Support Notice
+        </h4>
 
         <p className="text-muted mb-0">
-          This is currently a rule-based recommendation prototype.
-          It does not use a trained machine-learning model or external AI API.
+          This recommendation is generated
+          using rule-based calculations from
+          the current event, attendance,
+          venue, and resource data. It is a
+          decision-support prototype and does
+          not use a trained machine-learning
+          model or external AI API.
         </p>
       </div>
     </div>

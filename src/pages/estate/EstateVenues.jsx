@@ -1,45 +1,28 @@
+import { getVenues } from "../../utils/venueStore";
+import { getEvents } from "../../utils/eventStore";
+
 function EstateVenues() {
-  const venues = [
-    {
-      id: 1,
-      name: "Main Hall",
-      capacity: 200,
-      location: "Ground Floor",
-      status: "Available",
-      bookedFor: "-",
-    },
-    {
-      id: 2,
-      name: "Conference Hall",
-      capacity: 120,
-      location: "First Floor",
-      status: "Booked",
-      bookedFor: "AI Awareness Seminar",
-    },
-    {
-      id: 3,
-      name: "Auditorium",
-      capacity: 300,
-      location: "Main Building",
-      status: "Available",
-      bookedFor: "-",
-    },
-    {
-      id: 4,
-      name: "Room B12",
-      capacity: 50,
-      location: "Block B",
-      status: "Booked",
-      bookedFor: "Photography Workshop",
-    },
-  ];
+  const venues = getVenues();
+  const events = getEvents();
+
+  const getBookedEvent = (venueName) => {
+    const bookedEvent = events.find(
+      (event) =>
+        event.venue === venueName &&
+        event.status === "Approved"
+    );
+
+    return bookedEvent ? bookedEvent.title : "-";
+  };
 
   return (
     <div>
       <div className="dashboard-title">
         <div>
           <h2>Venue Availability</h2>
-          <p>Check venue capacity, booking status, and current allocation.</p>
+          <p>
+            Check venue capacity, booking status, and current allocation.
+          </p>
         </div>
       </div>
 
@@ -47,7 +30,9 @@ function EstateVenues() {
         <div className="section-header">
           <div>
             <h4>Campus Venues</h4>
-            <p>Current venue availability for event planning.</p>
+            <p>
+              Current venue availability for event planning.
+            </p>
           </div>
         </div>
 
@@ -64,27 +49,42 @@ function EstateVenues() {
             </thead>
 
             <tbody>
-              {venues.map((venue) => (
-                <tr key={venue.id}>
-                  <td>{venue.name}</td>
-                  <td>{venue.location}</td>
-                  <td>{venue.capacity}</td>
-
-                  <td>
-                    <span
-                      className={`venue-status ${
-                        venue.status === "Available"
-                          ? "available"
-                          : "booked"
-                      }`}
-                    >
-                      {venue.status}
-                    </span>
+              {venues.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="text-center text-muted py-4"
+                  >
+                    No venues available.
                   </td>
-
-                  <td>{venue.bookedFor}</td>
                 </tr>
-              ))}
+              ) : (
+                venues.map((venue) => (
+                  <tr key={venue.id}>
+                    <td>{venue.name}</td>
+                    <td>{venue.location}</td>
+                    <td>{venue.capacity}</td>
+
+                    <td>
+                      <span
+                        className={`venue-status ${
+                          venue.status === "Available"
+                            ? "available"
+                            : "booked"
+                        }`}
+                      >
+                        {venue.status}
+                      </span>
+                    </td>
+
+                    <td>
+                      {venue.status === "Booked"
+                        ? getBookedEvent(venue.name)
+                        : "-"}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

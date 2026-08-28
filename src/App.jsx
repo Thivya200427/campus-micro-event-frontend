@@ -59,7 +59,6 @@ import AdminReports from "./pages/admin/AdminReports";
 function App() {
   return (
     <Routes>
-
       {/* ==================================================
           DEFAULT ROUTE
       ================================================== */}
@@ -86,6 +85,7 @@ function App() {
       {/* ==================================================
           CLUB REPRESENTATIVE ROUTES
       ================================================== */}
+
       <Route
         element={
           <ProtectedRoute allowedRole="club">
@@ -147,16 +147,19 @@ function App() {
           path="/reports"
           element={<Reports />}
         />
-
       </Route>
-
 
       {/* ==================================================
           ESTATE MANAGER ROUTES
       ================================================== */}
 
-      <Route element={<EstateLayout />}>
-
+      <Route
+        element={
+          <ProtectedRoute allowedRole="estate">
+            <EstateLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route
           path="/estate/dashboard"
           element={<EstateDashboard />}
@@ -196,15 +199,19 @@ function App() {
           path="/estate/reports"
           element={<EstateReports />}
         />
-
       </Route>
 
       {/* ==================================================
           SYSTEM ADMIN ROUTES
       ================================================== */}
 
-      <Route element={<AdminLayout />}>
-
+      <Route
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route
           path="/admin/dashboard"
           element={<AdminDashboard />}
@@ -234,7 +241,6 @@ function App() {
           path="/admin/reports"
           element={<AdminReports />}
         />
-
       </Route>
 
       {/* ==================================================
@@ -246,7 +252,6 @@ function App() {
         element={
           <div className="container py-5 text-center">
             <h1>404</h1>
-
             <h4>Page Not Found</h4>
 
             <p className="text-muted">
@@ -255,7 +260,6 @@ function App() {
           </div>
         }
       />
-
     </Routes>
   );
 }

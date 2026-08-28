@@ -1,17 +1,56 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { getEvents } from "../../utils/eventStore";
+import {
+  getEvents,
+  getMyEvents,
+} from "../../utils/eventStore";
 
 function MyEvents() {
   const [events, setEvents] = useState([]);
 
   useEffect(() => {
-    setEvents(getEvents());
+    const myEvents = getMyEvents();
+
+    // Old events created before ownership was added
+    const legacyEvents = getEvents().filter(
+      (event) =>
+        event.createdBy === undefined ||
+        event.createdBy === null
+    );
+
+    const combinedEvents = [
+      ...myEvents,
+      ...legacyEvents.filter(
+        (legacyEvent) =>
+          !myEvents.some(
+            (myEvent) =>
+              String(myEvent.id) ===
+              String(legacyEvent.id)
+          )
+      ),
+    ];
+
+    setEvents(combinedEvents);
   }, []);
 
   const getStatusClass = (status) => {
-    return status.toLowerCase();
+    if (status === "Approved") {
+      return "approved";
+    }
+
+    if (
+      status === "Rejected" ||
+      status === "Cancelled"
+    ) {
+      return "rejected";
+    }
+
+    if (status === "Draft") {
+      return "draft";
+    }
+
+    return "pending";
   };
 
   return (
@@ -73,7 +112,6 @@ function MyEvents() {
         ) : (
           <div className="table-responsive">
             <table className="table dashboard-table">
-
               <thead>
                 <tr>
                   <th>Event</th>
@@ -88,21 +126,14 @@ function MyEvents() {
               <tbody>
                 {events.map((event) => (
                   <tr key={event.id}>
+                    <td>{event.title}</td>
+
+                    <td>{event.date || "-"}</td>
+
+                    <td>{event.venue || "-"}</td>
 
                     <td>
-                      {event.title}
-                    </td>
-
-                    <td>
-                      {event.date}
-                    </td>
-
-                    <td>
-                      {event.venue}
-                    </td>
-
-                    <td>
-                      {event.expectedParticipants}
+                      {event.expectedParticipants || 0}
                     </td>
 
                     <td>
@@ -111,7 +142,7 @@ function MyEvents() {
                           event.status
                         )}`}
                       >
-                        {event.status}
+                        {event.status || "Pending"}
                       </span>
                     </td>
 
@@ -123,11 +154,9 @@ function MyEvents() {
                         View
                       </Link>
                     </td>
-
                   </tr>
                 ))}
               </tbody>
-
             </table>
           </div>
         )}

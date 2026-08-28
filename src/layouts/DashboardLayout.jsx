@@ -1,7 +1,10 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { logoutUser } from "../utils/authStore";
+import { getLoggedInUser } from "../utils/authStore";
+
 function DashboardLayout() {
   const navigate = useNavigate();
+  const loggedInUser = getLoggedInUser();
 
   const handleLogout = () => {
     logoutUser();
@@ -99,8 +102,8 @@ function DashboardLayout() {
             </div>
 
             <div>
-              <strong>Demo User</strong>
-              <small>Club Representative</small>
+              <strong>{loggedInUser?.name || "Club Representative"}</strong>
+              <small>{loggedInUser?.role || "Club Representative"}</small>
             </div>
           </div>
         </header>
