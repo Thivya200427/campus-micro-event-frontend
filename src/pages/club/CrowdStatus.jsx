@@ -1,10 +1,36 @@
 import { useState } from "react";
 
-import { getEvents } from "../../utils/eventStore";
+import {
+  getEvents,
+  getMyEvents,
+} from "../../utils/eventStore";
+
 import { getEventAttendance } from "../../utils/attendanceStore";
 
 function CrowdStatus() {
-  const approvedEvents = getEvents().filter(
+  const allEvents = getEvents();
+  const myEvents = getMyEvents();
+
+  // Temporary support for old events created before ownership was added.
+  const legacyEvents = allEvents.filter(
+    (event) =>
+      event.createdBy === undefined ||
+      event.createdBy === null
+  );
+
+  const events = [
+    ...myEvents,
+    ...legacyEvents.filter(
+      (legacyEvent) =>
+        !myEvents.some(
+          (myEvent) =>
+            String(myEvent.id) ===
+            String(legacyEvent.id)
+        )
+    ),
+  ];
+
+  const approvedEvents = events.filter(
     (event) => event.status === "Approved"
   );
 
@@ -88,7 +114,7 @@ function CrowdStatus() {
           <h2>Crowd Status</h2>
 
           <p>
-            Monitor event attendance and crowd level.
+            Monitor attendance and crowd levels for your approved events.
           </p>
         </div>
       </div>
@@ -105,8 +131,8 @@ function CrowdStatus() {
           </h4>
 
           <p className="text-muted mb-0">
-            Crowd status will be available after an
-            event is approved.
+            Crowd status will be available after one of your
+            events is approved.
           </p>
         </div>
       ) : (
@@ -191,8 +217,7 @@ function CrowdStatus() {
                 </h4>
 
                 <p>
-                  {selectedEvent?.venue || "-"} - Live
-                  crowd overview
+                  {selectedEvent?.venue || "-"} - Live crowd overview
                 </p>
               </div>
 

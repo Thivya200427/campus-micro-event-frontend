@@ -8,11 +8,35 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { getEvents } from "../../utils/eventStore";
+import {
+  getEvents,
+  getMyEvents,
+} from "../../utils/eventStore";
+
 import { getEventAttendance } from "../../utils/attendanceStore";
 
 function Reports() {
-  const events = getEvents();
+  const allEvents = getEvents();
+  const myEvents = getMyEvents();
+
+  // Temporary support for old events created before ownership was added.
+  const legacyEvents = allEvents.filter(
+    (event) =>
+      event.createdBy === undefined ||
+      event.createdBy === null
+  );
+
+  const events = [
+    ...myEvents,
+    ...legacyEvents.filter(
+      (legacyEvent) =>
+        !myEvents.some(
+          (myEvent) =>
+            String(myEvent.id) ===
+            String(legacyEvent.id)
+        )
+    ),
+  ];
 
   const totalEvents = events.length;
 
@@ -38,18 +62,19 @@ function Reports() {
     0
   );
 
+  const approvedExpectedParticipants =
+    approvedEvents.reduce(
+      (total, event) =>
+        total +
+        Number(event.expectedParticipants || 0),
+      0
+    );
+
   const totalCheckedIn = approvedEvents.reduce(
     (total, event) =>
       total + getEventAttendance(event.id).length,
     0
   );
-
-  const approvedExpectedParticipants =
-    approvedEvents.reduce(
-      (total, event) =>
-        total + Number(event.expectedParticipants || 0),
-      0
-    );
 
   const attendanceRate =
     approvedExpectedParticipants > 0
@@ -61,12 +86,8 @@ function Reports() {
       : 0;
 
   const venuesUsed = new Set(
-    events
-      .filter(
-        (event) =>
-          event.venue &&
-          event.status === "Approved"
-      )
+    approvedEvents
+      .filter((event) => event.venue)
       .map((event) => event.venue)
   ).size;
 
@@ -100,8 +121,7 @@ function Reports() {
       return;
     }
 
-    const month =
-      monthNames[date.getMonth()];
+    const month = monthNames[date.getMonth()];
 
     monthlyEventMap[month] =
       (monthlyEventMap[month] || 0) + 1;
@@ -121,7 +141,8 @@ function Reports() {
           <h2>Reports</h2>
 
           <p>
-            View event statistics and activity summary.
+            View statistics for your events and
+            attendance activity.
           </p>
         </div>
       </div>
@@ -179,7 +200,8 @@ function Reports() {
               <h4>Monthly Events</h4>
 
               <p>
-                Number of events created for each month.
+                Number of your events scheduled for each
+                month.
               </p>
             </div>
           </div>
@@ -201,9 +223,7 @@ function Reports() {
 
                   <XAxis dataKey="month" />
 
-                  <YAxis
-                    allowDecimals={false}
-                  />
+                  <YAxis allowDecimals={false} />
 
                   <Tooltip />
 
@@ -223,7 +243,8 @@ function Reports() {
               <h4>Event Summary</h4>
 
               <p>
-                Current event and attendance statistics.
+                Current statistics for your events and
+                attendance.
               </p>
             </div>
           </div>

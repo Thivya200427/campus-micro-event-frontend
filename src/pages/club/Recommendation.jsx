@@ -1,12 +1,39 @@
 import { useState } from "react";
 
-import { getEvents } from "../../utils/eventStore";
+import {
+  getEvents,
+  getMyEvents,
+} from "../../utils/eventStore";
+
 import { getVenues } from "../../utils/venueStore";
 import { getResources } from "../../utils/resourceStore";
 import { getEventAttendance } from "../../utils/attendanceStore";
 
 function Recommendation() {
-  const approvedEvents = getEvents().filter(
+  const allEvents = getEvents();
+  const myEvents = getMyEvents();
+
+  // Temporary support for events created before ownership was added.
+  const legacyEvents = allEvents.filter(
+    (event) =>
+      event.createdBy === undefined ||
+      event.createdBy === null
+  );
+
+  const events = [
+    ...myEvents,
+    ...legacyEvents.filter(
+      (legacyEvent) =>
+        !myEvents.some(
+          (myEvent) =>
+            String(myEvent.id) ===
+            String(legacyEvent.id)
+        )
+    ),
+  ];
+
+  // Only this Club Representative's approved events.
+  const approvedEvents = events.filter(
     (event) => event.status === "Approved"
   );
 
@@ -183,14 +210,10 @@ function Recommendation() {
       checkedIn,
       attendancePercentage,
       predictedAttendance,
-      chairs:
-        recommendedChairs,
-      microphones:
-        recommendedMicrophones,
-      projectors:
-        recommendedProjectors,
-      volunteers:
-        recommendedVolunteers,
+      chairs: recommendedChairs,
+      microphones: recommendedMicrophones,
+      projectors: recommendedProjectors,
+      volunteers: recommendedVolunteers,
       risk,
       recommendedVenue,
       resourceWarnings,
@@ -207,7 +230,8 @@ function Recommendation() {
 
           <p>
             Generate attendance, venue,
-            resource, and crowd recommendations.
+            resource, and crowd recommendations
+            for your approved events.
           </p>
         </div>
       </div>
@@ -264,8 +288,8 @@ function Recommendation() {
             {approvedEvents.length ===
               0 && (
               <div className="alert alert-warning">
-                No approved events are
-                available.
+                You do not have any approved
+                events available.
               </div>
             )}
 
@@ -290,8 +314,8 @@ function Recommendation() {
 
           {!result ? (
             <p className="text-muted">
-              Select an approved event to
-              generate a recommendation.
+              Select one of your approved
+              events to generate a recommendation.
             </p>
           ) : (
             <>
@@ -434,8 +458,7 @@ function Recommendation() {
           .length > 0 && (
           <div className="alert alert-warning mt-4">
             <strong>
-              Resource Availability
-              Warning
+              Resource Availability Warning
             </strong>
 
             <ul className="mb-0 mt-2">

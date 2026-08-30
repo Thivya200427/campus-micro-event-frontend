@@ -1,6 +1,9 @@
 import { useState } from "react";
 
-import { getEvents } from "../../utils/eventStore";
+import {
+  getEvents,
+  getMyEvents,
+} from "../../utils/eventStore";
 
 import {
   getEventAttendance,
@@ -8,7 +11,29 @@ import {
 } from "../../utils/attendanceStore";
 
 function CheckIn() {
-  const approvedEvents = getEvents().filter(
+  const allEvents = getEvents();
+  const myEvents = getMyEvents();
+
+  // Temporary support for old events created before ownership was added.
+  const legacyEvents = allEvents.filter(
+    (event) =>
+      event.createdBy === undefined ||
+      event.createdBy === null
+  );
+
+  const events = [
+    ...myEvents,
+    ...legacyEvents.filter(
+      (legacyEvent) =>
+        !myEvents.some(
+          (myEvent) =>
+            String(myEvent.id) ===
+            String(legacyEvent.id)
+        )
+    ),
+  ];
+
+  const approvedEvents = events.filter(
     (event) => event.status === "Approved"
   );
 
@@ -35,7 +60,9 @@ function CheckIn() {
 
   const loadAttendance = (eventId) => {
     setParticipants(
-      getEventAttendance(eventId)
+      eventId
+        ? getEventAttendance(eventId)
+        : []
     );
   };
 
@@ -43,7 +70,6 @@ function CheckIn() {
     const eventId = e.target.value;
 
     setSelectedEventId(eventId);
-
     loadAttendance(eventId);
 
     setStudentId("");
@@ -82,6 +108,22 @@ function CheckIn() {
     ) {
       alert(
         "Expected participant limit has already been reached."
+      );
+      return;
+    }
+
+    const duplicateParticipant =
+      participants.some(
+        (participant) =>
+          String(participant.studentId)
+            .trim()
+            .toLowerCase() ===
+          studentId.trim().toLowerCase()
+      );
+
+    if (duplicateParticipant) {
+      alert(
+        "This Participant ID has already been checked in."
       );
       return;
     }
@@ -125,7 +167,8 @@ function CheckIn() {
           <h2>Participant Check-In</h2>
 
           <p>
-            Record participant attendance for approved events.
+            Record participant attendance for your approved
+            events.
           </p>
         </div>
       </div>
@@ -142,7 +185,7 @@ function CheckIn() {
           </h4>
 
           <p className="text-muted mb-0">
-            An event must be approved before participant
+            Your event must be approved before participant
             check-in can begin.
           </p>
         </div>

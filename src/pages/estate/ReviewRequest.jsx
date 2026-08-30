@@ -38,6 +38,7 @@ function ReviewRequest() {
         <div className="dashboard-title">
           <div>
             <h2>Event Not Found</h2>
+
             <p>
               The selected event request could not be found.
             </p>
@@ -55,13 +56,19 @@ function ReviewRequest() {
     );
   }
 
+  // =====================================================
+  // NOTIFICATION
+  // =====================================================
+
   const createNotification = (status) => {
     let notifications = [];
 
     try {
       notifications =
         JSON.parse(
-          localStorage.getItem("campus_notifications")
+          localStorage.getItem(
+            "campus_notifications"
+          )
         ) || [];
     } catch {
       notifications = [];
@@ -72,6 +79,18 @@ function ReviewRequest() {
 
       eventId: event.id,
 
+      // Notification belongs only to
+      // the Club Representative who
+      // created this event.
+      userId: event.createdBy || null,
+
+      userEmail:
+        event.createdByEmail || "",
+
+      userName:
+        event.createdByName ||
+        "Club Representative",
+
       title:
         status === "Approved"
           ? "Event Approved"
@@ -79,7 +98,11 @@ function ReviewRequest() {
 
       message:
         status === "Approved"
-          ? `${event.title} has been approved by the Estate Manager.`
+          ? `${event.title} has been approved by the Estate Manager.${
+              remarks.trim()
+                ? ` Remark: ${remarks.trim()}`
+                : ""
+            }`
           : `${event.title} has been rejected by the Estate Manager.${
               remarks.trim()
                 ? ` Reason: ${remarks.trim()}`
@@ -95,7 +118,8 @@ function ReviewRequest() {
 
       read: false,
 
-      createdAt: new Date().toISOString(),
+      createdAt:
+        new Date().toISOString(),
     };
 
     localStorage.setItem(
@@ -106,6 +130,10 @@ function ReviewRequest() {
       ])
     );
   };
+
+  // =====================================================
+  // UPDATE EVENT STATUS
+  // =====================================================
 
   const updateEventStatus = (
     status,
@@ -142,6 +170,10 @@ function ReviewRequest() {
     createNotification(status);
   };
 
+  // =====================================================
+  // RESOURCE QUANTITY
+  // =====================================================
+
   const getRequestedResourceQuantity = (
     resourceName
   ) => {
@@ -149,7 +181,9 @@ function ReviewRequest() {
       resourceName.toLowerCase();
 
     if (name === "chairs") {
-      return Number(event.chairs || 0);
+      return Number(
+        event.chairs || 0
+      );
     }
 
     if (name === "microphones") {
@@ -167,6 +201,10 @@ function ReviewRequest() {
     return 0;
   };
 
+  // =====================================================
+  // RESOURCE AVAILABILITY
+  // =====================================================
+
   const checkResourceAvailability = () => {
     const resources = getResources();
 
@@ -180,8 +218,9 @@ function ReviewRequest() {
         continue;
       }
 
-      const available =
-        Number(resource.available || 0);
+      const available = Number(
+        resource.available || 0
+      );
 
       if (requested > available) {
         alert(
@@ -194,6 +233,45 @@ function ReviewRequest() {
 
     return true;
   };
+
+  // =====================================================
+  // TIME OVERLAP CHECK
+  // =====================================================
+
+  const hasTimeOverlap = (
+    start1,
+    end1,
+    start2,
+    end2
+  ) => {
+    if (
+      !start1 ||
+      !end1 ||
+      !start2 ||
+      !end2
+    ) {
+      return false;
+    }
+
+    return (
+      start1 < end2 &&
+      end1 > start2
+    );
+  };
+
+  // =====================================================
+  // VENUE AVAILABILITY
+  //
+  // IMPORTANT:
+  // We DO NOT block only because
+  // venue.status === "Booked".
+  //
+  // Conflict happens only when:
+  // 1. Same venue
+  // 2. Same date
+  // 3. Time overlaps
+  // 4. Other event is Approved
+  // =====================================================
 
   const checkVenueAvailability = () => {
     const venues = getVenues();
@@ -211,12 +289,53 @@ function ReviewRequest() {
       return false;
     }
 
-    if (
-      selectedVenue.status === "Booked" &&
-      !event.venueAllocated
-    ) {
+    const conflictingEvent =
+      events.find((otherEvent) => {
+        // Do not compare event with itself.
+        if (
+          String(otherEvent.id) ===
+          String(event.id)
+        ) {
+          return false;
+        }
+
+        // Only approved events reserve
+        // a venue.
+        if (
+          otherEvent.status !==
+          "Approved"
+        ) {
+          return false;
+        }
+
+        // Must be same venue.
+        if (
+          otherEvent.venue !==
+          event.venue
+        ) {
+          return false;
+        }
+
+        // Must be same date.
+        if (
+          otherEvent.date !==
+          event.date
+        ) {
+          return false;
+        }
+
+        // Check overlapping time.
+        return hasTimeOverlap(
+          event.startTime,
+          event.endTime,
+          otherEvent.startTime,
+          otherEvent.endTime
+        );
+      });
+
+    if (conflictingEvent) {
       alert(
-        `${selectedVenue.name} is currently booked. Please choose another venue or update the venue status.`
+        `Cannot approve this event. ${event.venue} is already booked for "${conflictingEvent.title}" on ${event.date} from ${conflictingEvent.startTime} to ${conflictingEvent.endTime}.`
       );
 
       return false;
@@ -224,6 +343,10 @@ function ReviewRequest() {
 
     return true;
   };
+
+  // =====================================================
+  // ALLOCATE RESOURCES
+  // =====================================================
 
   const allocateResources = () => {
     const resources = getResources();
@@ -254,6 +377,14 @@ function ReviewRequest() {
     saveResources(updatedResources);
   };
 
+  // =====================================================
+  // BOOK VENUE
+  //
+  // venue.status is kept for the Estate
+  // Manager display, but scheduling
+  // decisions are now based on events.
+  // =====================================================
+
   const bookVenue = () => {
     const venues = getVenues();
 
@@ -266,6 +397,12 @@ function ReviewRequest() {
             ...venue,
 
             status: "Booked",
+
+            bookedFor:
+              event.title,
+
+            bookedEventId:
+              event.id,
           };
         }
 
@@ -274,6 +411,10 @@ function ReviewRequest() {
 
     saveVenues(updatedVenues);
   };
+
+  // =====================================================
+  // APPROVE EVENT
+  // =====================================================
 
   const handleApprove = () => {
     if (
@@ -285,23 +426,34 @@ function ReviewRequest() {
         "This event has already been approved and allocated."
       );
 
-      navigate("/estate/approved");
+      navigate(
+        "/estate/approved"
+      );
 
       return;
     }
 
-    if (!checkVenueAvailability()) {
+    // First check date/time venue conflict.
+    if (
+      !checkVenueAvailability()
+    ) {
       return;
     }
 
-    if (!checkResourceAvailability()) {
+    // Then check resource quantities.
+    if (
+      !checkResourceAvailability()
+    ) {
       return;
     }
 
+    // Allocate resources.
     allocateResources();
 
+    // Record venue booking.
     bookVenue();
 
+    // Approve event.
     updateEventStatus(
       "Approved",
       {
@@ -321,8 +473,14 @@ function ReviewRequest() {
       "Event approved. Venue and resources allocated successfully."
     );
 
-    navigate("/estate/approved");
+    navigate(
+      "/estate/approved"
+    );
   };
+
+  // =====================================================
+  // REJECT EVENT
+  // =====================================================
 
   const handleReject = () => {
     if (!remarks.trim()) {
@@ -333,21 +491,33 @@ function ReviewRequest() {
       return;
     }
 
-    updateEventStatus("Rejected");
+    updateEventStatus(
+      "Rejected"
+    );
 
     alert(
       "Event rejected successfully."
     );
 
-    navigate("/estate/rejected");
+    navigate(
+      "/estate/rejected"
+    );
   };
 
+  // =====================================================
+  // STATUS STYLE
+  // =====================================================
+
   const getStatusClass = () => {
-    if (event.status === "Approved") {
+    if (
+      event.status === "Approved"
+    ) {
       return "approved";
     }
 
-    if (event.status === "Rejected") {
+    if (
+      event.status === "Rejected"
+    ) {
       return "rejected";
     }
 
@@ -363,7 +533,8 @@ function ReviewRequest() {
           </h2>
 
           <p>
-            Review the event details before making a decision.
+            Review the event details before
+            making a decision.
           </p>
         </div>
 
@@ -378,16 +549,49 @@ function ReviewRequest() {
 
       <div className="event-details-grid">
         <div className="event-detail-card">
-          <h4>{event.title}</h4>
+          <h4>
+            {event.title}
+          </h4>
 
           <div className="detail-row">
-            <span>Event Type</span>
-            <strong>{event.eventType || "-"}</strong>
+            <span>
+              Submitted By
+            </span>
+
+            <strong>
+              {event.createdByName ||
+                "Club Representative"}
+            </strong>
+          </div>
+
+          {event.createdByEmail && (
+            <div className="detail-row">
+              <span>
+                Contact Email
+              </span>
+
+              <strong>
+                {event.createdByEmail}
+              </strong>
+            </div>
+          )}
+
+          <div className="detail-row">
+            <span>
+              Event Type
+            </span>
+
+            <strong>
+              {event.eventType || "-"}
+            </strong>
           </div>
 
           <div className="detail-row">
             <span>Date</span>
-            <strong>{event.date || "-"}</strong>
+
+            <strong>
+              {event.date || "-"}
+            </strong>
           </div>
 
           <div className="detail-row">
@@ -401,7 +605,10 @@ function ReviewRequest() {
 
           <div className="detail-row">
             <span>Venue</span>
-            <strong>{event.venue || "-"}</strong>
+
+            <strong>
+              {event.venue || "-"}
+            </strong>
           </div>
 
           <div className="detail-row">
@@ -410,7 +617,8 @@ function ReviewRequest() {
             </span>
 
             <strong>
-              {event.expectedParticipants || 0}
+              {event.expectedParticipants ||
+                0}
             </strong>
           </div>
 
@@ -420,20 +628,26 @@ function ReviewRequest() {
             <span
               className={`status ${getStatusClass()}`}
             >
-              {event.status || "Pending"}
+              {event.status ||
+                "Pending"}
             </span>
           </div>
         </div>
 
         <div className="event-detail-card">
-          <h4>Requested Resources</h4>
+          <h4>
+            Requested Resources
+          </h4>
 
           <div className="resource-detail">
             <i className="bi bi-person-workspace"></i>
 
             <div>
               <span>Chairs</span>
-              <strong>{event.chairs || 0}</strong>
+
+              <strong>
+                {event.chairs || 0}
+              </strong>
             </div>
           </div>
 
@@ -441,8 +655,14 @@ function ReviewRequest() {
             <i className="bi bi-mic"></i>
 
             <div>
-              <span>Microphones</span>
-              <strong>{event.microphones || 0}</strong>
+              <span>
+                Microphones
+              </span>
+
+              <strong>
+                {event.microphones ||
+                  0}
+              </strong>
             </div>
           </div>
 
@@ -450,15 +670,23 @@ function ReviewRequest() {
             <i className="bi bi-projector"></i>
 
             <div>
-              <span>Projectors</span>
-              <strong>{event.projectors || 0}</strong>
+              <span>
+                Projectors
+              </span>
+
+              <strong>
+                {event.projectors ||
+                  0}
+              </strong>
             </div>
           </div>
         </div>
       </div>
 
       <div className="event-detail-card mt-4">
-        <h4>Description</h4>
+        <h4>
+          Description
+        </h4>
 
         <p className="text-muted mb-0">
           {event.description ||
@@ -467,11 +695,14 @@ function ReviewRequest() {
       </div>
 
       <div className="event-detail-card mt-4">
-        <h4>Manager Remarks</h4>
+        <h4>
+          Manager Remarks
+        </h4>
 
         <p className="text-muted">
-          Add an optional remark when approving.
-          A reason is required when rejecting.
+          Add an optional remark when
+          approving. A reason is required
+          when rejecting.
         </p>
 
         <textarea
@@ -480,7 +711,9 @@ function ReviewRequest() {
           placeholder="Enter manager remarks or rejection reason"
           value={remarks}
           onChange={(e) =>
-            setRemarks(e.target.value)
+            setRemarks(
+              e.target.value
+            )
           }
         />
 

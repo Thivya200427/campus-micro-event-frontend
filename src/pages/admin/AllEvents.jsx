@@ -16,7 +16,10 @@ function AllEvents() {
       <div className="dashboard-title">
         <div>
           <h2>All Events</h2>
-          <p>View all event requests in the system.</p>
+
+          <p>
+            View all event requests in the system.
+          </p>
         </div>
       </div>
 
@@ -24,6 +27,7 @@ function AllEvents() {
         <div className="section-header">
           <div>
             <h4>System Event List</h4>
+
             <p>
               All event requests created by club representatives.
             </p>
@@ -44,7 +48,9 @@ function AllEvents() {
               }}
             ></i>
 
-            <h5 className="mt-3">No Events Found</h5>
+            <h5 className="mt-3">
+              No Events Found
+            </h5>
 
             <p className="text-muted">
               Event requests will appear here after they are created.
@@ -56,6 +62,7 @@ function AllEvents() {
               <thead>
                 <tr>
                   <th>Event</th>
+                  <th>Created By</th>
                   <th>Type</th>
                   <th>Date</th>
                   <th>Venue</th>
@@ -68,15 +75,42 @@ function AllEvents() {
               <tbody>
                 {events.map((event) => (
                   <tr key={event.id}>
-                    <td>{event.title}</td>
+                    <td>
+                      <strong>
+                        {event.title || "-"}
+                      </strong>
+                    </td>
 
-                    <td>{event.eventType || "-"}</td>
+                    <td>
+                      <div>
+                        <strong>
+                          {event.createdByName ||
+                            "Legacy Event"}
+                        </strong>
 
-                    <td>{event.date}</td>
+                        {event.createdByEmail && (
+                          <div className="small text-muted">
+                            {event.createdByEmail}
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                    <td>{event.venue}</td>
+                    <td>
+                      {event.eventType || "-"}
+                    </td>
 
-                    <td>{event.expectedParticipants}</td>
+                    <td>
+                      {event.date || "-"}
+                    </td>
+
+                    <td>
+                      {event.venue || "-"}
+                    </td>
+
+                    <td>
+                      {event.expectedParticipants || 0}
+                    </td>
 
                     <td>
                       <span
@@ -84,7 +118,7 @@ function AllEvents() {
                           event.status
                         )}`}
                       >
-                        {event.status}
+                        {event.status || "Draft"}
                       </span>
                     </td>
 

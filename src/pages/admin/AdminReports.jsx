@@ -9,14 +9,24 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from "recharts";
 
 import { getEvents } from "../../utils/eventStore";
 import { getUsers } from "../../utils/userStore";
+import { getVenues } from "../../utils/venueStore";
+import { getResources } from "../../utils/resourceStore";
+import { getEventAttendance } from "../../utils/attendanceStore";
 
 function AdminReports() {
   const events = getEvents();
   const users = getUsers();
+  const venues = getVenues();
+  const resources = getResources();
+
+  // =====================================================
+  // USER STATISTICS
+  // =====================================================
 
   const totalUsers = users.length;
 
@@ -24,25 +34,170 @@ function AdminReports() {
     (user) => user.status === "Active"
   ).length;
 
-  const totalEvents = events.length;
+  const inactiveUsers =
+    totalUsers - activeUsers;
 
-  const pendingEvents = events.filter(
-    (event) => event.status === "Pending"
-  ).length;
+  // =====================================================
+  // EVENT STATISTICS
+  // =====================================================
+
+  const totalEvents = events.length;
 
   const approvedEvents = events.filter(
     (event) => event.status === "Approved"
-  ).length;
+  );
+
+  const pendingEvents = events.filter(
+    (event) => event.status === "Pending"
+  );
 
   const rejectedEvents = events.filter(
     (event) => event.status === "Rejected"
-  ).length;
+  );
+
+  const cancelledEvents = events.filter(
+    (event) => event.status === "Cancelled"
+  );
+
+  const approvedCount =
+    approvedEvents.length;
+
+  const pendingCount =
+    pendingEvents.length;
+
+  const rejectedCount =
+    rejectedEvents.length;
+
+  const cancelledCount =
+    cancelledEvents.length;
+
+  // =====================================================
+  // PARTICIPANT / ATTENDANCE STATISTICS
+  // =====================================================
 
   const totalParticipants = events.reduce(
     (total, event) =>
-      total + Number(event.expectedParticipants || 0),
+      total +
+      Number(
+        event.expectedParticipants || 0
+      ),
     0
   );
+
+  const approvedExpectedParticipants =
+    approvedEvents.reduce(
+      (total, event) =>
+        total +
+        Number(
+          event.expectedParticipants || 0
+        ),
+      0
+    );
+
+  const totalCheckIns =
+    approvedEvents.reduce(
+      (total, event) =>
+        total +
+        getEventAttendance(
+          event.id
+        ).length,
+      0
+    );
+
+  const attendanceRate =
+    approvedExpectedParticipants > 0
+      ? Math.round(
+          (totalCheckIns /
+            approvedExpectedParticipants) *
+            100
+        )
+      : 0;
+
+  // =====================================================
+  // VENUE STATISTICS
+  // =====================================================
+
+  const totalVenues = venues.length;
+
+  const bookedVenues =
+    venues.filter(
+      (venue) =>
+        venue.status === "Booked"
+    ).length;
+
+  const availableVenues =
+    venues.filter(
+      (venue) =>
+        venue.status === "Available"
+    ).length;
+
+  // =====================================================
+  // RESOURCE STATISTICS
+  // =====================================================
+
+  const totalResourceQuantity =
+    resources.reduce(
+      (total, resource) =>
+        total +
+        Number(
+          resource.total || 0
+        ),
+      0
+    );
+
+  const availableResources =
+    resources.reduce(
+      (total, resource) =>
+        total +
+        Number(
+          resource.available || 0
+        ),
+      0
+    );
+
+  const allocatedResources =
+    resources.reduce(
+      (total, resource) => {
+        const resourceTotal =
+          Number(
+            resource.total || 0
+          );
+
+        const resourceAvailable =
+          Number(
+            resource.available || 0
+          );
+
+        return (
+          total +
+          Math.max(
+            resourceTotal -
+              resourceAvailable,
+            0
+          )
+        );
+      },
+      0
+    );
+
+  // =====================================================
+  // MONTHLY EVENT CHART
+  // =====================================================
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
 
   const monthlyMap = {};
 
@@ -51,42 +206,60 @@ function AdminReports() {
       return;
     }
 
-    const date = new Date(event.date);
+    const date = new Date(
+      `${event.date}T00:00:00`
+    );
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
       return;
     }
 
-    const month = date.toLocaleString("en-US", {
-      month: "short",
-    });
+    const month =
+      monthNames[
+        date.getMonth()
+      ];
 
-    if (!monthlyMap[month]) {
-      monthlyMap[month] = 0;
-    }
-
-    monthlyMap[month] += 1;
+    monthlyMap[month] =
+      (monthlyMap[month] || 0) +
+      1;
   });
 
-  const monthlyEvents = Object.entries(monthlyMap).map(
-    ([month, count]) => ({
-      month,
-      events: count,
-    })
-  );
+  const monthlyEvents =
+    monthNames
+      .map((month) => ({
+        month,
+        events:
+          monthlyMap[month] || 0,
+      }))
+      .filter(
+        (item) =>
+          item.events > 0
+      );
+
+  // =====================================================
+  // EVENT STATUS CHART
+  // =====================================================
 
   const statusData = [
     {
       name: "Approved",
-      value: approvedEvents,
+      value: approvedCount,
     },
     {
       name: "Pending",
-      value: pendingEvents,
+      value: pendingCount,
     },
     {
       name: "Rejected",
-      value: rejectedEvents,
+      value: rejectedCount,
+    },
+    {
+      name: "Cancelled",
+      value: cancelledCount,
     },
   ];
 
@@ -94,21 +267,29 @@ function AdminReports() {
     "#0f766e",
     "#f59e0b",
     "#dc2626",
+    "#64748b",
   ];
 
   return (
     <div>
       <div className="dashboard-title">
         <div>
-          <h2>Admin Reports</h2>
+          <h2>
+            Admin Reports
+          </h2>
 
           <p>
-            View overall system users, events and activity statistics.
+            View complete system users,
+            events, attendance, venues and
+            resource statistics.
           </p>
         </div>
       </div>
 
-      {/* Statistics */}
+      {/* =================================================
+          MAIN STATISTICS
+      ================================================= */}
+
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">
@@ -145,55 +326,90 @@ function AdminReports() {
 
         <div className="stat-card">
           <div className="stat-icon">
-            <i className="bi bi-hourglass-split"></i>
-          </div>
-
-          <div>
-            <span>Pending</span>
-            <h3>{pendingEvents}</h3>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
             <i className="bi bi-check-circle"></i>
           </div>
 
           <div>
             <span>Approved</span>
-            <h3>{approvedEvents}</h3>
+            <h3>{approvedCount}</h3>
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon">
-            <i className="bi bi-people"></i>
+            <i className="bi bi-hourglass-split"></i>
           </div>
 
           <div>
-            <span>Total Participants</span>
-            <h3>{totalParticipants}</h3>
+            <span>Pending</span>
+            <h3>{pendingCount}</h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-x-circle"></i>
+          </div>
+
+          <div>
+            <span>Rejected</span>
+            <h3>{rejectedCount}</h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-calendar-x"></i>
+          </div>
+
+          <div>
+            <span>Cancelled</span>
+            <h3>{cancelledCount}</h3>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <i className="bi bi-person-check-fill"></i>
+          </div>
+
+          <div>
+            <span>
+              Actual Check-Ins
+            </span>
+
+            <h3>
+              {totalCheckIns}
+            </h3>
           </div>
         </div>
       </div>
 
-      {/* Charts */}
+      {/* =================================================
+          CHARTS
+      ================================================= */}
+
       <div className="report-grid">
         <div className="report-card">
           <div className="section-header">
             <div>
-              <h4>Monthly Events</h4>
+              <h4>
+                Monthly Events
+              </h4>
 
               <p>
-                Number of events created for each month.
+                Number of system events
+                scheduled for each month.
               </p>
             </div>
           </div>
 
-          {monthlyEvents.length === 0 ? (
+          {monthlyEvents.length ===
+          0 ? (
             <div className="text-center py-5">
               <p className="text-muted">
-                No event data available for the chart.
+                No event data available
+                for the chart.
               </p>
             </div>
           ) : (
@@ -201,19 +417,37 @@ function AdminReports() {
               width="100%"
               height={320}
             >
-              <BarChart data={monthlyEvents}>
-                <CartesianGrid strokeDasharray="3 3" />
+              <BarChart
+                data={
+                  monthlyEvents
+                }
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                />
 
-                <XAxis dataKey="month" />
+                <XAxis
+                  dataKey="month"
+                />
 
-                <YAxis allowDecimals={false} />
+                <YAxis
+                  allowDecimals={
+                    false
+                  }
+                />
 
                 <Tooltip />
 
                 <Bar
                   dataKey="events"
+                  name="Events"
                   fill="#0f766e"
-                  radius={[5, 5, 0, 0]}
+                  radius={[
+                    5,
+                    5,
+                    0,
+                    0,
+                  ]}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -223,10 +457,13 @@ function AdminReports() {
         <div className="report-card">
           <div className="section-header">
             <div>
-              <h4>Event Status</h4>
+              <h4>
+                Event Status
+              </h4>
 
               <p>
-                Current event approval distribution.
+                Current system event
+                status distribution.
               </p>
             </div>
           </div>
@@ -234,7 +471,8 @@ function AdminReports() {
           {totalEvents === 0 ? (
             <div className="text-center py-5">
               <p className="text-muted">
-                No event status data available.
+                No event status data
+                available.
               </p>
             </div>
           ) : (
@@ -248,33 +486,62 @@ function AdminReports() {
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
+                  cy="45%"
+                  outerRadius={90}
+                  label={({
+                    name,
+                    value,
+                  }) =>
+                    value > 0
+                      ? `${name}: ${value}`
+                      : ""
+                  }
                 >
-                  {statusData.map((item, index) => (
-                    <Cell
-                      key={item.name}
-                      fill={pieColors[index]}
-                    />
-                  ))}
+                  {statusData.map(
+                    (
+                      item,
+                      index
+                    ) => (
+                      <Cell
+                        key={
+                          item.name
+                        }
+                        fill={
+                          pieColors[
+                            index
+                          ]
+                        }
+                      />
+                    )
+                  )}
                 </Pie>
 
                 <Tooltip />
+
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                />
               </PieChart>
             </ResponsiveContainer>
           )}
         </div>
       </div>
 
-      {/* Summary */}
+      {/* =================================================
+          SYSTEM SUMMARY
+      ================================================= */}
+
       <div className="dashboard-section mt-4">
         <div className="section-header">
           <div>
-            <h4>System Summary</h4>
+            <h4>
+              System Summary
+            </h4>
 
             <p>
-              User and event statistics.
+              Complete system activity
+              and resource overview.
             </p>
           </div>
         </div>
@@ -283,26 +550,80 @@ function AdminReports() {
           <table className="table dashboard-table">
             <thead>
               <tr>
-                <th>Category</th>
-                <th>Total</th>
-                <th>Description</th>
+                <th>
+                  Category
+                </th>
+
+                <th>
+                  Total
+                </th>
+
+                <th>
+                  Description
+                </th>
               </tr>
             </thead>
 
             <tbody>
               <tr>
-                <td>Registered Users</td>
-                <td>{totalUsers}</td>
                 <td>
-                  Total accounts registered in the system.
+                  Registered Users
+                </td>
+
+                <td>
+                  {totalUsers}
+                </td>
+
+                <td>
+                  Total user accounts
+                  registered in the
+                  system.
                 </td>
               </tr>
 
               <tr>
-                <td>Active Users</td>
-                <td>{activeUsers}</td>
                 <td>
-                  Users currently allowed to sign in.
+                  Active Users
+                </td>
+
+                <td>
+                  {activeUsers}
+                </td>
+
+                <td>
+                  Users currently
+                  allowed to sign in.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Inactive Users
+                </td>
+
+                <td>
+                  {inactiveUsers}
+                </td>
+
+                <td>
+                  User accounts
+                  currently disabled.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Total Event Requests
+                </td>
+
+                <td>
+                  {totalEvents}
+                </td>
+
+                <td>
+                  All event requests
+                  submitted by Club
+                  Representatives.
                 </td>
               </tr>
 
@@ -313,10 +634,13 @@ function AdminReports() {
                   </span>
                 </td>
 
-                <td>{approvedEvents}</td>
+                <td>
+                  {approvedCount}
+                </td>
 
                 <td>
-                  Event requests approved by the Estate Manager.
+                  Events approved by
+                  the Estate Manager.
                 </td>
               </tr>
 
@@ -327,10 +651,14 @@ function AdminReports() {
                   </span>
                 </td>
 
-                <td>{pendingEvents}</td>
+                <td>
+                  {pendingCount}
+                </td>
 
                 <td>
-                  Event requests waiting for Estate Manager review.
+                  Events awaiting
+                  Estate Manager
+                  review.
                 </td>
               </tr>
 
@@ -341,18 +669,175 @@ function AdminReports() {
                   </span>
                 </td>
 
-                <td>{rejectedEvents}</td>
+                <td>
+                  {rejectedCount}
+                </td>
 
                 <td>
-                  Event requests rejected by the Estate Manager.
+                  Events rejected by
+                  the Estate Manager.
                 </td>
               </tr>
 
               <tr>
-                <td>Total Participants</td>
-                <td>{totalParticipants}</td>
                 <td>
-                  Total expected participants across all events.
+                  Cancelled Events
+                </td>
+
+                <td>
+                  {cancelledCount}
+                </td>
+
+                <td>
+                  Approved events
+                  cancelled by Club
+                  Representatives.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Expected Participants
+                </td>
+
+                <td>
+                  {totalParticipants}
+                </td>
+
+                <td>
+                  Total expected
+                  participants across
+                  all event requests.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Actual Check-Ins
+                </td>
+
+                <td>
+                  {totalCheckIns}
+                </td>
+
+                <td>
+                  Participants actually
+                  checked into approved
+                  events.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Attendance Rate
+                </td>
+
+                <td>
+                  {attendanceRate}%
+                </td>
+
+                <td>
+                  Actual check-ins
+                  compared with expected
+                  participants for
+                  currently approved
+                  events.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Total Venues
+                </td>
+
+                <td>
+                  {totalVenues}
+                </td>
+
+                <td>
+                  Total campus venues
+                  managed by the
+                  system.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Booked Venues
+                </td>
+
+                <td>
+                  {bookedVenues}
+                </td>
+
+                <td>
+                  Venues with active
+                  booking records.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Available Venues
+                </td>
+
+                <td>
+                  {availableVenues}
+                </td>
+
+                <td>
+                  Venues currently
+                  marked available.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Total Resource
+                  Quantity
+                </td>
+
+                <td>
+                  {
+                    totalResourceQuantity
+                  }
+                </td>
+
+                <td>
+                  Total quantity of all
+                  campus resources.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Allocated Resources
+                </td>
+
+                <td>
+                  {allocatedResources}
+                </td>
+
+                <td>
+                  Resource quantities
+                  allocated to approved
+                  events.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  Available Resources
+                </td>
+
+                <td>
+                  {availableResources}
+                </td>
+
+                <td>
+                  Resource quantities
+                  currently available
+                  for future events.
                 </td>
               </tr>
             </tbody>

@@ -1,15 +1,25 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
+  NavLink,
+  Outlet,
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  logoutUser,
+  getLoggedInUser,
+} from "../utils/authStore";
 
 function AdminLayout() {
   const navigate = useNavigate();
+  const loggedInUser = getLoggedInUser();
 
   const handleLogout = () => {
+    logoutUser();
     navigate("/login");
   };
 
   return (
     <div className="dashboard-layout">
-      {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-brand">
           <i className="bi bi-shield-check"></i>
@@ -62,9 +72,7 @@ function AdminLayout() {
         </button>
       </aside>
 
-      {/* Main Area */}
       <div className="dashboard-main">
-        {/* Top Bar */}
         <header className="topbar">
           <div>
             <h4>Campus Micro-Event System</h4>
@@ -81,13 +89,15 @@ function AdminLayout() {
             </div>
 
             <div>
-              <strong>System Admin</strong>
+              <strong>
+                {loggedInUser?.name || "System Admin"}
+              </strong>
+
               <small>Administrator</small>
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="dashboard-content">
           <Outlet />
         </main>

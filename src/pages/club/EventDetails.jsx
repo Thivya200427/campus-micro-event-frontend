@@ -5,6 +5,8 @@ import {
   saveEvents,
 } from "../../utils/eventStore";
 
+import { getLoggedInUser } from "../../utils/authStore";
+
 import {
   getResources,
   saveResources,
@@ -15,24 +17,62 @@ import {
   saveVenues,
 } from "../../utils/venueStore";
 
+import {
+  addEventNotification,
+} from "../../utils/notificationStore";
+
 function EventDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const loggedInUser = getLoggedInUser();
   const events = getEvents();
 
-  const event = events.find(
+  const foundEvent = events.find(
     (item) => String(item.id) === String(id)
   );
+
+  const isLegacyEvent =
+    foundEvent &&
+    (foundEvent.createdBy === undefined ||
+      foundEvent.createdBy === null) &&
+    !foundEvent.createdByEmail;
+
+  const isOwnerById =
+    foundEvent &&
+    foundEvent.createdBy !== undefined &&
+    foundEvent.createdBy !== null &&
+    loggedInUser?.id !== undefined &&
+    loggedInUser?.id !== null &&
+    String(foundEvent.createdBy) ===
+      String(loggedInUser.id);
+
+  const isOwnerByEmail =
+    foundEvent?.createdByEmail &&
+    loggedInUser?.email &&
+    foundEvent.createdByEmail.toLowerCase() ===
+      loggedInUser.email.toLowerCase();
+
+  const canViewEvent =
+    Boolean(foundEvent) &&
+    (isLegacyEvent ||
+      isOwnerById ||
+      isOwnerByEmail);
+
+  const event = canViewEvent
+    ? foundEvent
+    : null;
 
   if (!event) {
     return (
       <div>
         <div className="dashboard-title">
           <div>
-            <h2>Event Not Found</h2>
+            <h2>Event Not Available</h2>
+
             <p>
-              The selected event could not be found.
+              This event could not be found or you do not
+              have permission to view it.
             </p>
           </div>
 
@@ -46,9 +86,21 @@ function EventDetails() {
         </div>
 
         <div className="event-detail-card">
-          <p className="text-muted mb-0">
-            This event may have been removed or is no longer available.
-          </p>
+          <div className="text-center py-4">
+            <i
+              className="bi bi-shield-lock"
+              style={{ fontSize: "40px" }}
+            ></i>
+
+            <h4 className="mt-3">
+              Event Access Restricted
+            </h4>
+
+            <p className="text-muted mb-0">
+              Club Representatives can only view their own
+              event requests.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -57,10 +109,13 @@ function EventDetails() {
   const getRequestedResourceQuantity = (
     resourceName
   ) => {
-    const name = resourceName.toLowerCase();
+    const name =
+      resourceName.toLowerCase();
 
     if (name === "chairs") {
-      return Number(event.chairs || 0);
+      return Number(
+        event.chairs || 0
+      );
     }
 
     if (name === "microphones") {
@@ -75,6 +130,12 @@ function EventDetails() {
       );
     }
 
+    if (name === "speakers") {
+      return Number(
+        event.speakers || 0
+      );
+    }
+
     return 0;
   };
 
@@ -85,8 +146,8 @@ function EventDetails() {
 
     const resources = getResources();
 
-    const updatedResources = resources.map(
-      (resource) => {
+    const updatedResources =
+      resources.map((resource) => {
         const quantity =
           getRequestedResourceQuantity(
             resource.name
@@ -110,8 +171,7 @@ function EventDetails() {
             total
           ),
         };
-      }
-    );
+      });
 
     saveResources(updatedResources);
   };
@@ -123,27 +183,32 @@ function EventDetails() {
 
     const venues = getVenues();
 
-    const updatedVenues = venues.map(
-      (venue) => {
-        if (venue.name === event.venue) {
+    const updatedVenues =
+      venues.map((venue) => {
+        if (
+          venue.name === event.venue
+        ) {
           return {
             ...venue,
+
             status: "Available",
+
+            bookedFor: "",
           };
         }
 
         return venue;
-      }
-    );
+      });
 
     saveVenues(updatedVenues);
   };
 
   const cancelEvent = () => {
-    const updatedEvents = events.map(
-      (item) => {
+    const updatedEvents =
+      events.map((item) => {
         if (
-          String(item.id) === String(id)
+          String(item.id) ===
+          String(event.id)
         ) {
           return {
             ...item,
@@ -160,56 +225,32 @@ function EventDetails() {
         }
 
         return item;
-      }
-    );
+      });
 
     saveEvents(updatedEvents);
   };
 
-  const createCancellationNotification = () => {
-    let notifications = [];
+  const createCancellationNotification =
+    () => {
+      addEventNotification({
+        event,
 
-    try {
-      notifications =
-        JSON.parse(
-          localStorage.getItem(
-            "campus_notifications"
-          )
-        ) || [];
-    } catch {
-      notifications = [];
-    }
+        title: "Event Cancelled",
 
-    const newNotification = {
-      id: Date.now(),
+        message:
+          `${event.title} has been cancelled. ` +
+          "Allocated venue and resources have been released.",
 
-      eventId: event.id,
+        type: "warning",
 
-      title: "Event Cancelled",
-
-      message: `${event.title} has been cancelled. Allocated venue and resources have been released.`,
-
-      type: "warning",
-
-      status: "Cancelled",
-
-      read: false,
-
-      createdAt:
-        new Date().toISOString(),
+        status: "Cancelled",
+      });
     };
 
-    localStorage.setItem(
-      "campus_notifications",
-      JSON.stringify([
-        newNotification,
-        ...notifications,
-      ])
-    );
-  };
-
   const handleCancel = () => {
-    if (event.status !== "Approved") {
+    if (
+      event.status !== "Approved"
+    ) {
       alert(
         "Only approved events can be cancelled."
       );
@@ -217,9 +258,10 @@ function EventDetails() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Are you sure you want to cancel "${event.title}"?`
-    );
+    const confirmed =
+      window.confirm(
+        `Are you sure you want to cancel "${event.title}"?`
+      );
 
     if (!confirmed) {
       return;
@@ -241,20 +283,17 @@ function EventDetails() {
   };
 
   const getStatusClass = () => {
-    if (event.status === "Approved") {
+    if (
+      event.status === "Approved"
+    ) {
       return "approved";
     }
 
-    if (event.status === "Rejected") {
+    if (
+      event.status === "Rejected" ||
+      event.status === "Cancelled"
+    ) {
       return "rejected";
-    }
-
-    if (event.status === "Cancelled") {
-      return "rejected";
-    }
-
-    if (event.status === "Draft") {
-      return "pending";
     }
 
     return "pending";
@@ -267,12 +306,14 @@ function EventDetails() {
           <h2>Event Details</h2>
 
           <p>
-            View complete information about this event request.
+            View complete information about your event
+            request.
           </p>
         </div>
 
         <div className="d-flex gap-2">
-          {event.status === "Approved" && (
+          {event.status ===
+            "Approved" && (
             <button
               type="button"
               className="btn btn-danger"
@@ -399,6 +440,21 @@ function EventDetails() {
               </strong>
             </div>
           </div>
+
+          {Number(event.speakers || 0) >
+            0 && (
+            <div className="resource-detail">
+              <i className="bi bi-speaker"></i>
+
+              <div>
+                <span>Speakers</span>
+
+                <strong>
+                  {event.speakers || 0}
+                </strong>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -414,7 +470,9 @@ function EventDetails() {
 
       {event.managerRemarks && (
         <div className="event-detail-card mt-4">
-          <h4>Manager Remarks</h4>
+          <h4>
+            Manager Remarks
+          </h4>
 
           <p className="mb-0 text-muted">
             {event.managerRemarks}
@@ -422,10 +480,13 @@ function EventDetails() {
         </div>
       )}
 
-      {event.status === "Cancelled" && (
+      {event.status ===
+        "Cancelled" && (
         <div className="alert alert-warning mt-4">
           <i className="bi bi-info-circle me-2"></i>
-          This event has been cancelled.
+
+          This event has been cancelled. Allocated venue
+          and resources have been released.
         </div>
       )}
     </div>

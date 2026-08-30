@@ -2,10 +2,6 @@ import { getLoggedInUser } from "./authStore";
 
 const STORAGE_KEY = "campus_notifications";
 
-/*
- * Get all notifications
- * Used by the system internally.
- */
 export function getNotifications() {
   try {
     const notifications =
@@ -21,43 +17,27 @@ export function getNotifications() {
   }
 }
 
-/*
- * Save all notifications
- */
-export function saveNotifications(
-  notifications
-) {
+export function saveNotifications(notifications) {
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify(notifications)
   );
 }
 
-/*
- * Add a new notification
- */
-export function addNotification(
-  notification
-) {
-  const notifications =
-    getNotifications();
+export function addNotification(notification) {
+  const notifications = getNotifications();
 
   const newNotification = {
-    id:
-      notification.id ||
-      Date.now(),
+    id: notification.id || Date.now(),
 
     eventId:
-      notification.eventId ||
-      null,
+      notification.eventId || null,
 
     userId:
-      notification.userId ||
-      null,
+      notification.userId || null,
 
     userEmail:
-      notification.userEmail ||
-      "",
+      notification.userEmail || "",
 
     userName:
       notification.userName ||
@@ -68,20 +48,16 @@ export function addNotification(
       "Notification",
 
     message:
-      notification.message ||
-      "",
+      notification.message || "",
 
     type:
-      notification.type ||
-      "info",
+      notification.type || "info",
 
     status:
-      notification.status ||
-      "",
+      notification.status || "",
 
     read:
-      notification.read ??
-      false,
+      notification.read ?? false,
 
     createdAt:
       notification.createdAt ||
@@ -96,24 +72,18 @@ export function addNotification(
   return newNotification;
 }
 
-/*
- * Check whether notification belongs
- * to logged-in Club Representative.
- */
-export function isMyNotification(
-  notification
-) {
-  const loggedInUser =
-    getLoggedInUser();
+export function isMyNotification(notification) {
+  const loggedInUser = getLoggedInUser();
 
   if (!loggedInUser) {
     return false;
   }
 
   /*
-   * Legacy notifications:
-   * Old notifications created before
-   * ownership support are still shown.
+   * STRICT OWNERSHIP
+   *
+   * Old notifications without an owner
+   * must not be shown to every Club user.
    */
   const hasNoOwner =
     (notification.userId === undefined ||
@@ -121,41 +91,38 @@ export function isMyNotification(
     !notification.userEmail;
 
   if (hasNoOwner) {
-    return true;
+    return false;
   }
 
   const matchesUserId =
     notification.userId !== undefined &&
     notification.userId !== null &&
+    loggedInUser.id !== undefined &&
+    loggedInUser.id !== null &&
     String(notification.userId) ===
       String(loggedInUser.id);
 
   const matchesEmail =
-    notification.userEmail &&
-    loggedInUser.email &&
-    notification.userEmail.toLowerCase() ===
+    Boolean(notification.userEmail) &&
+    Boolean(loggedInUser.email) &&
+    notification.userEmail
+      .toLowerCase() ===
       loggedInUser.email.toLowerCase();
 
   return Boolean(
-    matchesUserId ||
-      matchesEmail
+    matchesUserId || matchesEmail
   );
 }
 
-/*
- * Get notifications belonging
- * to current logged-in user.
- */
 export function getMyNotifications() {
-  return getNotifications().filter(
+  const notifications =
+    getNotifications();
+
+  return notifications.filter(
     isMyNotification
   );
 }
 
-/*
- * Get unread notification count
- * for current user.
- */
 export function getUnreadNotificationCount() {
   return getMyNotifications().filter(
     (notification) =>
@@ -163,10 +130,6 @@ export function getUnreadNotificationCount() {
   ).length;
 }
 
-/*
- * Mark only current user's
- * notifications as read.
- */
 export function markMyNotificationsAsRead() {
   const notifications =
     getNotifications();
@@ -175,9 +138,7 @@ export function markMyNotificationsAsRead() {
     notifications.map(
       (notification) => {
         if (
-          isMyNotification(
-            notification
-          )
+          isMyNotification(notification)
         ) {
           return {
             ...notification,
@@ -198,10 +159,6 @@ export function markMyNotificationsAsRead() {
   );
 }
 
-/*
- * Create notification directly
- * from an event.
- */
 export function addEventNotification({
   event,
   title,
@@ -213,16 +170,18 @@ export function addEventNotification({
     return null;
   }
 
+  /*
+   * Every new event notification is saved
+   * with the owner of that event.
+   */
   return addNotification({
     eventId: event.id,
 
     userId:
-      event.createdBy ||
-      null,
+      event.createdBy || null,
 
     userEmail:
-      event.createdByEmail ||
-      "",
+      event.createdByEmail || "",
 
     userName:
       event.createdByName ||

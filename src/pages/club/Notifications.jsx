@@ -1,111 +1,28 @@
 import { useEffect, useState } from "react";
 
-import { getLoggedInUser } from "../../utils/authStore";
+import {
+  getMyNotifications,
+  markMyNotificationsAsRead,
+} from "../../utils/notificationStore";
 
 function Notifications() {
   const [notifications, setNotifications] = useState([]);
-
-  const loggedInUser = getLoggedInUser();
 
   useEffect(() => {
     loadNotifications();
   }, []);
 
-  const getStoredNotifications = () => {
-    try {
-      return (
-        JSON.parse(
-          localStorage.getItem("campus_notifications")
-        ) || []
-      );
-    } catch {
-      return [];
-    }
-  };
-
-  const isMyNotification = (notification) => {
-    /*
-     * Legacy support:
-     * Old notifications created before
-     * ownership support are still shown.
-     */
-    const hasNoOwner =
-      notification.userId === undefined &&
-      notification.userEmail === undefined;
-
-    if (hasNoOwner) {
-      return true;
-    }
-
-    const matchesUserId =
-      notification.userId !== undefined &&
-      notification.userId !== null &&
-      String(notification.userId) ===
-        String(loggedInUser?.id);
-
-    const matchesEmail =
-      notification.userEmail &&
-      loggedInUser?.email &&
-      notification.userEmail.toLowerCase() ===
-        loggedInUser.email.toLowerCase();
-
-    return matchesUserId || matchesEmail;
-  };
-
   const loadNotifications = () => {
-    const storedNotifications =
-      getStoredNotifications();
-
-    const myNotifications =
-      storedNotifications.filter(
-        isMyNotification
-      );
+    const myNotifications = getMyNotifications();
 
     setNotifications(myNotifications);
   };
 
   const markAllAsRead = () => {
-    const storedNotifications =
-      getStoredNotifications();
+    const updatedNotifications =
+      markMyNotificationsAsRead();
 
-    /*
-     * Only this Club Representative's
-     * notifications are marked as read.
-     *
-     * Other users' notifications remain
-     * unchanged.
-     */
-    const updatedAllNotifications =
-      storedNotifications.map(
-        (notification) => {
-          if (
-            isMyNotification(notification)
-          ) {
-            return {
-              ...notification,
-              read: true,
-            };
-          }
-
-          return notification;
-        }
-      );
-
-    localStorage.setItem(
-      "campus_notifications",
-      JSON.stringify(
-        updatedAllNotifications
-      )
-    );
-
-    const myUpdatedNotifications =
-      updatedAllNotifications.filter(
-        isMyNotification
-      );
-
-    setNotifications(
-      myUpdatedNotifications
-    );
+    setNotifications(updatedNotifications);
   };
 
   const getIcon = (type) => {
@@ -129,14 +46,9 @@ function Notifications() {
       return "";
     }
 
-    const createdDate =
-      new Date(dateValue);
+    const createdDate = new Date(dateValue);
 
-    if (
-      Number.isNaN(
-        createdDate.getTime()
-      )
-    ) {
+    if (Number.isNaN(createdDate.getTime())) {
       return "";
     }
 
@@ -190,8 +102,7 @@ function Notifications() {
           <h2>Notifications</h2>
 
           <p>
-            View updates about your
-            events and requests.
+            View updates about your events and requests.
           </p>
         </div>
 
@@ -199,9 +110,7 @@ function Notifications() {
           type="button"
           className="btn btn-outline-secondary"
           onClick={markAllAsRead}
-          disabled={
-            notifications.length === 0
-          }
+          disabled={notifications.length === 0}
         >
           <i className="bi bi-check2-all me-2"></i>
           Mark All as Read
@@ -223,64 +132,56 @@ function Notifications() {
             </h4>
 
             <p className="text-muted mb-0">
-              New event updates will
-              appear here.
+              New event updates will appear here.
             </p>
           </div>
         ) : (
-          notifications.map(
-            (notification) => (
+          notifications.map((notification) => (
+            <div
+              className={`notification-card ${
+                notification.read ? "read" : ""
+              }`}
+              key={notification.id}
+            >
               <div
-                className={`notification-card ${
-                  notification.read
-                    ? "read"
-                    : ""
+                className={`notification-type-icon ${
+                  notification.type || "info"
                 }`}
-                key={
-                  notification.id
-                }
               >
-                <div
-                  className={`notification-type-icon ${
-                    notification.type ||
-                    "info"
-                  }`}
-                >
-                  <i
-                    className={getIcon(
-                      notification.type
-                    )}
-                  ></i>
-                </div>
-
-                <div className="notification-content">
-                  <div className="notification-heading">
-                    <h4>
-                      {notification.title ||
-                        "Notification"}
-                    </h4>
-
-                    <span>
-                      {formatTime(
-                        notification.createdAt
-                      )}
-                    </span>
-                  </div>
-
-                  <p>
-                    {notification.message ||
-                      "No notification message."}
-                  </p>
-
-                  {!notification.read && (
-                    <span className="badge bg-primary">
-                      New
-                    </span>
+                <i
+                  className={getIcon(
+                    notification.type
                   )}
-                </div>
+                ></i>
               </div>
-            )
-          )
+
+              <div className="notification-content">
+                <div className="notification-heading">
+                  <h4>
+                    {notification.title ||
+                      "Notification"}
+                  </h4>
+
+                  <span>
+                    {formatTime(
+                      notification.createdAt
+                    )}
+                  </span>
+                </div>
+
+                <p>
+                  {notification.message ||
+                    "No notification message."}
+                </p>
+
+                {!notification.read && (
+                  <span className="badge bg-primary">
+                    New
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
