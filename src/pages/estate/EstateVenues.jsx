@@ -1,9 +1,9 @@
-import { getVenues } from "../../utils/venueStore";
-import { getEvents } from "../../utils/eventStore";
+import useVenues from "../../hooks/useVenues";
+import useEvents from "../../hooks/useEvents";
 
 function EstateVenues() {
-  const venues = getVenues();
-  const events = getEvents();
+  const { venues } = useVenues();
+  const { events } = useEvents({ status: "APPROVED" });
 
   const getBookedEvent = (venueName) => {
     const bookedEvent = events.find(

@@ -1,7 +1,7 @@
-import { getEvents } from "../../utils/eventStore";
+import useEvents from "../../hooks/useEvents";
 
 function AllEvents() {
-  const events = getEvents();
+  const { events } = useEvents();
 
   const getStatusClass = (status) => {
     if (!status) {

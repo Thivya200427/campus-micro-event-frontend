@@ -409,7 +409,8 @@ body {
 
 .sidebar {
   width: 260px;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
 
   position: fixed;
   left: 0;
@@ -422,6 +423,8 @@ body {
 
   background: #0f766e;
   color: white;
+
+  overflow: hidden;
 }
 
 .sidebar-brand {
@@ -451,9 +454,15 @@ body {
 .sidebar-menu {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   gap: 6px;
 
   margin-top: 28px;
+  margin-bottom: 16px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-menu a {
@@ -487,7 +496,7 @@ body {
 }
 
 .logout-btn {
-  margin-top: auto;
+  flex-shrink: 0;
 
   display: flex;
   align-items: center;
@@ -1492,4 +1501,3 @@ body {
   justify-content: flex-end;
   gap: 12px;
 }
-

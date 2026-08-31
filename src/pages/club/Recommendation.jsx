@@ -1,44 +1,23 @@
 import { useState } from "react";
 
-import {
-  getEvents,
-  getMyEvents,
-} from "../../utils/eventStore";
-
-import { getVenues } from "../../utils/venueStore";
-import { getResources } from "../../utils/resourceStore";
-import { getEventAttendance } from "../../utils/attendanceStore";
+import useEvents from "../../hooks/useEvents";
+import useVenues from "../../hooks/useVenues";
+import { getLoggedInUser } from "../../utils/authStore";
+import useResources from "../../hooks/useResources";
+import useAttendance from "../../hooks/useAttendance";
 
 function Recommendation() {
-  const allEvents = getEvents();
-  const myEvents = getMyEvents();
-
-  // Temporary support for events created before ownership was added.
-  const legacyEvents = allEvents.filter(
-    (event) =>
-      event.createdBy === undefined ||
-      event.createdBy === null
-  );
-
-  const events = [
-    ...myEvents,
-    ...legacyEvents.filter(
-      (legacyEvent) =>
-        !myEvents.some(
-          (myEvent) =>
-            String(myEvent.id) ===
-            String(legacyEvent.id)
-        )
-    ),
-  ];
+  const loggedInUser = getLoggedInUser();
+  const { events } = useEvents({ userId: loggedInUser?.id });
 
   // Only this Club Representative's approved events.
   const approvedEvents = events.filter(
     (event) => event.status === "Approved"
   );
 
-  const venues = getVenues();
-  const resources = getResources();
+  const { venues } = useVenues();
+  const { resources } = useResources();
+  const { getEventAttendance } = useAttendance();
 
   const [selectedEventId, setSelectedEventId] =
     useState("");
@@ -473,21 +452,6 @@ function Recommendation() {
           </div>
         )}
 
-      <div className="event-detail-card mt-4">
-        <h4>
-          Decision Support Notice
-        </h4>
-
-        <p className="text-muted mb-0">
-          This recommendation is generated
-          using rule-based calculations from
-          the current event, attendance,
-          venue, and resource data. It is a
-          decision-support prototype and does
-          not use a trained machine-learning
-          model or external AI API.
-        </p>
-      </div>
     </div>
   );
 }

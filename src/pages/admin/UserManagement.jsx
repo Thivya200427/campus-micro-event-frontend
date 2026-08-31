@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   getUsers,
-  saveUsers,
-  registerUser,
-} from "../../utils/userStore";
+  createUser,
+  updateUser,
+  deleteUser,
+} from "../../services/userService";
+import { getApiError } from "../../services/api";
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -17,13 +19,32 @@ function UserManagement() {
     password: "",
   });
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  async function loadUsers() {
+    try {
+      setUsers(await getUsers());
+    } catch (error) {
+      alert(getApiError(error, "Unable to load users"));
+    }
+  }
 
-  const loadUsers = () => {
-    setUsers(getUsers());
-  };
+  useEffect(() => {
+    let active = true;
+    getUsers()
+      .then((data) => {
+        if (active) {
+          setUsers(data);
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          alert(getApiError(error, "Unable to load users"));
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -32,7 +53,7 @@ function UserManagement() {
     });
   };
 
-  const handleAddUser = (e) => {
+  const handleAddUser = async (e) => {
     e.preventDefault();
 
     if (formData.password.length < 6) {
@@ -40,52 +61,42 @@ function UserManagement() {
       return;
     }
 
-    const result = registerUser({
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      role: formData.role,
-      password: formData.password,
-    });
+    try {
+      await createUser({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        role: formData.role,
+        password: formData.password,
+        status: "ACTIVE",
+      });
 
-    if (!result.success) {
-      alert(result.message);
-      return;
+      alert("User created successfully");
+      setFormData({
+        name: "",
+        email: "",
+        role: "club",
+        password: "",
+      });
+      setShowAddUser(false);
+      await loadUsers();
+    } catch (error) {
+      alert(getApiError(error, "Unable to create user"));
     }
-
-    alert("User created successfully");
-
-    setFormData({
-      name: "",
-      email: "",
-      role: "club",
-      password: "",
-    });
-
-    setShowAddUser(false);
-
-    loadUsers();
   };
 
-  const handleToggleStatus = (id) => {
-    const updatedUsers = users.map((user) => {
-      if (user.id === id) {
-        return {
-          ...user,
-          status:
-            user.status === "Active"
-              ? "Inactive"
-              : "Active",
-        };
-      }
-
-      return user;
-    });
-
-    saveUsers(updatedUsers);
-    setUsers(updatedUsers);
+  const handleToggleStatus = async (user) => {
+    const isActive = user.status?.toUpperCase() === "ACTIVE";
+    try {
+      await updateUser(user.id, {
+        status: isActive ? "INACTIVE" : "ACTIVE",
+      });
+      await loadUsers();
+    } catch (error) {
+      alert(getApiError(error, "Unable to update user"));
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this user?"
     );
@@ -94,12 +105,12 @@ function UserManagement() {
       return;
     }
 
-    const updatedUsers = users.filter(
-      (user) => user.id !== id
-    );
-
-    saveUsers(updatedUsers);
-    setUsers(updatedUsers);
+    try {
+      await deleteUser(id);
+      await loadUsers();
+    } catch (error) {
+      alert(getApiError(error, "Unable to delete user"));
+    }
   };
 
   const getRoleName = (role) => {
@@ -170,7 +181,6 @@ function UserManagement() {
                   type="text"
                   name="name"
                   className="form-control"
-                  placeholder="Enter full name"
                   value={formData.name}
                   onChange={handleChange}
                   required
@@ -187,7 +197,6 @@ function UserManagement() {
                   type="email"
                   name="email"
                   className="form-control"
-                  placeholder="Enter email address"
                   value={formData.email}
                   onChange={handleChange}
                   required
@@ -231,7 +240,6 @@ function UserManagement() {
                   type="password"
                   name="password"
                   className="form-control"
-                  placeholder="Minimum 6 characters"
                   value={formData.password}
                   onChange={handleChange}
                   minLength="6"
@@ -317,7 +325,7 @@ function UserManagement() {
                     <td>
                       <span
                         className={`status ${
-                          user.status === "Active"
+                          user.status?.toUpperCase() === "ACTIVE"
                             ? "approved"
                             : "rejected"
                         }`}
@@ -339,10 +347,10 @@ function UserManagement() {
                         type="button"
                         className="btn btn-sm btn-outline-secondary me-2"
                         onClick={() =>
-                          handleToggleStatus(user.id)
+                          handleToggleStatus(user)
                         }
                       >
-                        {user.status === "Active"
+                        {user.status?.toUpperCase() === "ACTIVE"
                           ? "Disable"
                           : "Enable"}
                       </button>

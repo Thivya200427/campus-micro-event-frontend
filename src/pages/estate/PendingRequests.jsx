@@ -1,12 +1,8 @@
 import { Link } from "react-router-dom";
-import { getEvents } from "../../utils/eventStore";
+import useEvents from "../../hooks/useEvents";
 
 function PendingRequests() {
-  const events = getEvents();
-
-  const pendingEvents = events.filter(
-    (event) => event.status === "Pending"
-  );
+  const { events: pendingEvents } = useEvents({ status: "PENDING" });
 
   return (
     <div>

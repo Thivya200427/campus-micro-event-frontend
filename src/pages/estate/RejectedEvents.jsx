@@ -1,11 +1,7 @@
-import { getEvents } from "../../utils/eventStore";
+import useEvents from "../../hooks/useEvents";
 
 function RejectedEvents() {
-  const events = getEvents();
-
-  const rejectedEvents = events.filter(
-    (event) => event.status === "Rejected"
-  );
+  const { events: rejectedEvents } = useEvents({ status: "REJECTED" });
 
   return (
     <div>

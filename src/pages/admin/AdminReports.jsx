@@ -11,18 +11,18 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import { useEffect, useState } from "react";
 
-import { getEvents } from "../../utils/eventStore";
-import { getUsers } from "../../utils/userStore";
-import { getVenues } from "../../utils/venueStore";
-import { getResources } from "../../utils/resourceStore";
-import { getEventAttendance } from "../../utils/attendanceStore";
+import { getUsers } from "../../services/userService";
+import useDashboardSummary from "../../hooks/useDashboardSummary";
 
 function AdminReports() {
-  const events = getEvents();
-  const users = getUsers();
-  const venues = getVenues();
-  const resources = getResources();
+  const [users, setUsers] = useState([]);
+  const summary = useDashboardSummary();
+
+  useEffect(() => {
+    getUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
 
   // =====================================================
   // USER STATISTICS
@@ -31,7 +31,7 @@ function AdminReports() {
   const totalUsers = users.length;
 
   const activeUsers = users.filter(
-    (user) => user.status === "Active"
+    (user) => user.status?.toUpperCase() === "ACTIVE"
   ).length;
 
   const inactiveUsers =
@@ -41,68 +41,19 @@ function AdminReports() {
   // EVENT STATISTICS
   // =====================================================
 
-  const totalEvents = events.length;
-
-  const approvedEvents = events.filter(
-    (event) => event.status === "Approved"
-  );
-
-  const pendingEvents = events.filter(
-    (event) => event.status === "Pending"
-  );
-
-  const rejectedEvents = events.filter(
-    (event) => event.status === "Rejected"
-  );
-
-  const cancelledEvents = events.filter(
-    (event) => event.status === "Cancelled"
-  );
-
-  const approvedCount =
-    approvedEvents.length;
-
-  const pendingCount =
-    pendingEvents.length;
-
-  const rejectedCount =
-    rejectedEvents.length;
-
-  const cancelledCount =
-    cancelledEvents.length;
+  const totalEvents = summary.totalEvents;
+  const approvedCount = summary.approvedEvents;
+  const pendingCount = summary.pendingEvents;
+  const rejectedCount = summary.rejectedEvents;
+  const cancelledCount = summary.cancelledEvents;
 
   // =====================================================
   // PARTICIPANT / ATTENDANCE STATISTICS
   // =====================================================
 
-  const totalParticipants = events.reduce(
-    (total, event) =>
-      total +
-      Number(
-        event.expectedParticipants || 0
-      ),
-    0
-  );
-
-  const approvedExpectedParticipants =
-    approvedEvents.reduce(
-      (total, event) =>
-        total +
-        Number(
-          event.expectedParticipants || 0
-        ),
-      0
-    );
-
-  const totalCheckIns =
-    approvedEvents.reduce(
-      (total, event) =>
-        total +
-        getEventAttendance(
-          event.id
-        ).length,
-      0
-    );
+  const totalParticipants = summary.expectedParticipants;
+  const approvedExpectedParticipants = summary.approvedExpectedParticipants;
+  const totalCheckIns = summary.totalAttendance;
 
   const attendanceRate =
     approvedExpectedParticipants > 0
@@ -117,128 +68,23 @@ function AdminReports() {
   // VENUE STATISTICS
   // =====================================================
 
-  const totalVenues = venues.length;
-
-  const bookedVenues =
-    venues.filter(
-      (venue) =>
-        venue.status === "Booked"
-    ).length;
-
-  const availableVenues =
-    venues.filter(
-      (venue) =>
-        venue.status === "Available"
-    ).length;
+  const totalVenues = summary.totalVenues;
+  const bookedVenues = summary.venueUsage.reduce((total, venue) => total + venue.value, 0);
+  const availableVenues = Math.max(totalVenues - summary.venueUsage.length, 0);
 
   // =====================================================
   // RESOURCE STATISTICS
   // =====================================================
 
-  const totalResourceQuantity =
-    resources.reduce(
-      (total, resource) =>
-        total +
-        Number(
-          resource.total || 0
-        ),
-      0
-    );
-
-  const availableResources =
-    resources.reduce(
-      (total, resource) =>
-        total +
-        Number(
-          resource.available || 0
-        ),
-      0
-    );
-
-  const allocatedResources =
-    resources.reduce(
-      (total, resource) => {
-        const resourceTotal =
-          Number(
-            resource.total || 0
-          );
-
-        const resourceAvailable =
-          Number(
-            resource.available || 0
-          );
-
-        return (
-          total +
-          Math.max(
-            resourceTotal -
-              resourceAvailable,
-            0
-          )
-        );
-      },
-      0
-    );
+  const totalResourceQuantity = summary.totalResourceQuantity;
+  const availableResources = summary.availableResourceQuantity;
+  const allocatedResources = summary.allocatedResourceQuantity;
 
   // =====================================================
   // MONTHLY EVENT CHART
   // =====================================================
 
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-
-  const monthlyMap = {};
-
-  events.forEach((event) => {
-    if (!event.date) {
-      return;
-    }
-
-    const date = new Date(
-      `${event.date}T00:00:00`
-    );
-
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return;
-    }
-
-    const month =
-      monthNames[
-        date.getMonth()
-      ];
-
-    monthlyMap[month] =
-      (monthlyMap[month] || 0) +
-      1;
-  });
-
-  const monthlyEvents =
-    monthNames
-      .map((month) => ({
-        month,
-        events:
-          monthlyMap[month] || 0,
-      }))
-      .filter(
-        (item) =>
-          item.events > 0
-      );
+  const monthlyEvents = summary.monthlyEvents;
 
   // =====================================================
   // EVENT STATUS CHART

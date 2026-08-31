@@ -1,34 +1,7 @@
+import useVenues from "../../hooks/useVenues";
+
 function Venues() {
-  const venues = [
-    {
-      id: 1,
-      name: "Main Hall",
-      location: "Ground Floor",
-      capacity: 200,
-      status: "Available",
-    },
-    {
-      id: 2,
-      name: "Conference Hall",
-      location: "First Floor",
-      capacity: 120,
-      status: "Available",
-    },
-    {
-      id: 3,
-      name: "Auditorium",
-      location: "Main Building",
-      capacity: 300,
-      status: "Booked",
-    },
-    {
-      id: 4,
-      name: "Room B12",
-      location: "Block B",
-      capacity: 50,
-      status: "Available",
-    },
-  ];
+  const { venues } = useVenues();
 
   return (
     <div>
@@ -39,7 +12,13 @@ function Venues() {
         </div>
       </div>
 
-      <div className="venue-grid">
+      {venues.length === 0 ? (
+        <div className="dashboard-section text-center py-5">
+          <i className="bi bi-building" style={{ fontSize: "44px", color: "#94a3b8" }}></i>
+          <h5 className="mt-3">No Venues Available</h5>
+          <p className="text-muted mb-0">Campus venues will appear here once added.</p>
+        </div>
+      ) : <div className="venue-grid">
         {venues.map((venue) => (
           <div className="venue-card" key={venue.id}>
             <div className="venue-card-header">
@@ -80,7 +59,7 @@ function Venues() {
             </button>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

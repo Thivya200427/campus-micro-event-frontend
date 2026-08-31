@@ -1,14 +1,14 @@
 import { useState } from "react";
-
 import {
-  getVenues,
-  addVenue,
+  createVenue,
   updateVenue,
   deleteVenue,
-} from "../../utils/venueStore";
+} from "../../services/venueService";
+import { getApiError } from "../../services/api";
+import useVenues from "../../hooks/useVenues";
 
 function VenueManagement() {
-  const [venues, setVenues] = useState(getVenues());
+  const { venues, loadVenues } = useVenues();
 
   const [showForm, setShowForm] = useState(false);
 
@@ -20,10 +20,6 @@ function VenueManagement() {
     capacity: "",
     status: "Available",
   });
-
-  const refreshVenues = () => {
-    setVenues(getVenues());
-  };
 
   const handleChange = (e) => {
     setFormData({
@@ -70,7 +66,7 @@ function VenueManagement() {
     setShowForm(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (
@@ -89,21 +85,22 @@ function VenueManagement() {
       status: formData.status,
     };
 
-    if (editingVenue) {
-      updateVenue(editingVenue.id, venueData);
-
-      alert("Venue updated successfully.");
-    } else {
-      addVenue(venueData);
-
-      alert("Venue added successfully.");
+    try {
+      if (editingVenue) {
+        await updateVenue(editingVenue.id, venueData);
+        alert("Venue updated successfully.");
+      } else {
+        await createVenue(venueData);
+        alert("Venue added successfully.");
+      }
+      await loadVenues();
+      resetForm();
+    } catch (error) {
+      alert(getApiError(error, "Unable to save the venue."));
     }
-
-    refreshVenues();
-    resetForm();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this venue?"
     );
@@ -112,11 +109,13 @@ function VenueManagement() {
       return;
     }
 
-    deleteVenue(id);
-
-    refreshVenues();
-
-    alert("Venue deleted successfully.");
+    try {
+      await deleteVenue(id);
+      await loadVenues();
+      alert("Venue deleted successfully.");
+    } catch (error) {
+      alert(getApiError(error, "Unable to delete the venue."));
+    }
   };
 
   return (
@@ -156,7 +155,6 @@ function VenueManagement() {
                   className="form-control"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="Enter venue name"
                   required
                 />
               </div>
@@ -172,7 +170,6 @@ function VenueManagement() {
                   className="form-control"
                   value={formData.location}
                   onChange={handleChange}
-                  placeholder="Enter location"
                   required
                 />
               </div>
@@ -189,7 +186,6 @@ function VenueManagement() {
                   value={formData.capacity}
                   onChange={handleChange}
                   min="1"
-                  placeholder="Enter capacity"
                   required
                 />
               </div>

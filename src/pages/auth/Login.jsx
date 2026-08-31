@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { loginUser } from "../../utils/authStore";
-import { authenticateUser } from "../../utils/userStore";
+import { login } from "../../services/authService";
+import { getApiError } from "../../services/api";
+
 function Login() {
   const navigate = useNavigate();
 
@@ -13,6 +15,7 @@ function Login() {
   });
 
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -23,35 +26,40 @@ function Login() {
     setError("");
   };
 
-  const handleLogin = (e) => {
-  e.preventDefault();
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
-  const user = authenticateUser(
-    formData.email,
-    formData.password,
-    formData.role
-  );
+    try {
+      const user = await login({
+        email: formData.email.trim(),
+        password: formData.password,
+        role: formData.role,
+      });
 
-  if (!user) {
-    setError("Invalid email, password, or role");
-    return;
-  }
+      const normalizedUser = {
+        ...user,
+        role: user.role.toLowerCase(),
+      };
+      loginUser(normalizedUser);
 
-  loginUser({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  });
-
-  if (user.role === "club") {
-    navigate("/dashboard");
-  } else if (user.role === "estate") {
-    navigate("/estate/dashboard");
-  } else if (user.role === "admin") {
-    navigate("/admin/dashboard");
-  }
-};
+      if (normalizedUser.role === "club") {
+        navigate("/dashboard");
+      } else if (normalizedUser.role === "estate") {
+        navigate("/estate/dashboard");
+      } else if (normalizedUser.role === "admin") {
+        navigate("/admin/dashboard");
+      }
+    } catch (requestError) {
+      setError(getApiError(
+        requestError,
+        "Unable to sign in. Please try again."
+      ));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="login-page">
@@ -115,7 +123,6 @@ function Login() {
                     type="email"
                     name="email"
                     className="form-control"
-                    placeholder="Enter your email"
                     value={formData.email}
                     onChange={handleChange}
                     required
@@ -137,7 +144,6 @@ function Login() {
                     type="password"
                     name="password"
                     className="form-control"
-                    placeholder="Enter your password"
                     value={formData.password}
                     onChange={handleChange}
                     required
@@ -208,8 +214,9 @@ function Login() {
               <button
                 type="submit"
                 className="btn login-button w-100"
+                disabled={loading}
               >
-                Sign In
+                {loading ? "Signing In..." : "Sign In"}
               </button>
             </form>
 

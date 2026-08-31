@@ -1,38 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
-import {
-  getEvents,
-  getMyEvents,
-} from "../../utils/eventStore";
+import useEvents from "../../hooks/useEvents";
+import { getLoggedInUser } from "../../utils/authStore";
 
 function MyEvents() {
-  const [events, setEvents] = useState([]);
-
-  useEffect(() => {
-    const myEvents = getMyEvents();
-
-    // Old events created before ownership was added
-    const legacyEvents = getEvents().filter(
-      (event) =>
-        event.createdBy === undefined ||
-        event.createdBy === null
-    );
-
-    const combinedEvents = [
-      ...myEvents,
-      ...legacyEvents.filter(
-        (legacyEvent) =>
-          !myEvents.some(
-            (myEvent) =>
-              String(myEvent.id) ===
-              String(legacyEvent.id)
-          )
-      ),
-    ];
-
-    setEvents(combinedEvents);
-  }, []);
+  const loggedInUser = getLoggedInUser();
+  const { events } = useEvents({ userId: loggedInUser?.id });
 
   const getStatusClass = (status) => {
     if (status === "Approved") {

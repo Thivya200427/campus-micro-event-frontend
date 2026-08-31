@@ -74,7 +74,7 @@ function DashboardLayout() {
 
           <NavLink to="/recommendation">
             <i className="bi bi-stars"></i>
-            <span>AI Recommendation</span>
+            <span>Recommendations</span>
           </NavLink>
 
           <NavLink to="/venues">

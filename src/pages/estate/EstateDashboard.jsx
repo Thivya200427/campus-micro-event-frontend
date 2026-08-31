@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
 
-import { getEvents } from "../../utils/eventStore";
-import { getVenues } from "../../utils/venueStore";
-import { getResources } from "../../utils/resourceStore";
+import useEvents from "../../hooks/useEvents";
+import useVenues from "../../hooks/useVenues";
+import useResources from "../../hooks/useResources";
 
 function EstateDashboard() {
-  const events = getEvents();
-  const venues = getVenues();
-  const resources = getResources();
+  const { events } = useEvents();
+  const { venues } = useVenues();
+  const { resources } = useResources();
 
   const pendingEvents = events.filter(
     (event) => event.status === "Pending"

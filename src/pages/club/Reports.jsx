@@ -8,73 +8,20 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import {
-  getEvents,
-  getMyEvents,
-} from "../../utils/eventStore";
-
-import { getEventAttendance } from "../../utils/attendanceStore";
+import { getLoggedInUser } from "../../utils/authStore";
+import useDashboardSummary from "../../hooks/useDashboardSummary";
 
 function Reports() {
-  const allEvents = getEvents();
-  const myEvents = getMyEvents();
-
-  // Temporary support for old events created before ownership was added.
-  const legacyEvents = allEvents.filter(
-    (event) =>
-      event.createdBy === undefined ||
-      event.createdBy === null
-  );
-
-  const events = [
-    ...myEvents,
-    ...legacyEvents.filter(
-      (legacyEvent) =>
-        !myEvents.some(
-          (myEvent) =>
-            String(myEvent.id) ===
-            String(legacyEvent.id)
-        )
-    ),
-  ];
-
-  const totalEvents = events.length;
-
-  const approvedEvents = events.filter(
-    (event) => event.status === "Approved"
-  );
-
-  const pendingEvents = events.filter(
-    (event) => event.status === "Pending"
-  );
-
-  const rejectedEvents = events.filter(
-    (event) => event.status === "Rejected"
-  );
-
-  const cancelledEvents = events.filter(
-    (event) => event.status === "Cancelled"
-  );
-
-  const totalExpectedParticipants = events.reduce(
-    (total, event) =>
-      total + Number(event.expectedParticipants || 0),
-    0
-  );
-
-  const approvedExpectedParticipants =
-    approvedEvents.reduce(
-      (total, event) =>
-        total +
-        Number(event.expectedParticipants || 0),
-      0
-    );
-
-  const totalCheckedIn = approvedEvents.reduce(
-    (total, event) =>
-      total + getEventAttendance(event.id).length,
-    0
-  );
+  const loggedInUser = getLoggedInUser();
+  const summary = useDashboardSummary(loggedInUser?.id);
+  const totalEvents = summary.totalEvents;
+  const approvedCount = summary.approvedEvents;
+  const pendingCount = summary.pendingEvents;
+  const rejectedCount = summary.rejectedEvents;
+  const cancelledCount = summary.cancelledEvents;
+  const totalExpectedParticipants = summary.expectedParticipants;
+  const approvedExpectedParticipants = summary.approvedExpectedParticipants;
+  const totalCheckedIn = summary.totalAttendance;
 
   const attendanceRate =
     approvedExpectedParticipants > 0
@@ -85,54 +32,8 @@ function Reports() {
         )
       : 0;
 
-  const venuesUsed = new Set(
-    approvedEvents
-      .filter((event) => event.venue)
-      .map((event) => event.venue)
-  ).size;
-
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-
-  const monthlyEventMap = {};
-
-  events.forEach((event) => {
-    if (!event.date) {
-      return;
-    }
-
-    const date = new Date(
-      `${event.date}T00:00:00`
-    );
-
-    if (Number.isNaN(date.getTime())) {
-      return;
-    }
-
-    const month = monthNames[date.getMonth()];
-
-    monthlyEventMap[month] =
-      (monthlyEventMap[month] || 0) + 1;
-  });
-
-  const chartData = monthNames
-    .map((month) => ({
-      month,
-      events: monthlyEventMap[month] || 0,
-    }))
-    .filter((item) => item.events > 0);
+  const venuesUsed = summary.venueUsage.length;
+  const chartData = summary.monthlyEvents;
 
   return (
     <div>
@@ -166,7 +67,7 @@ function Reports() {
 
           <div>
             <span>Approved</span>
-            <h3>{approvedEvents.length}</h3>
+            <h3>{approvedCount}</h3>
           </div>
         </div>
 
@@ -177,7 +78,7 @@ function Reports() {
 
           <div>
             <span>Pending</span>
-            <h3>{pendingEvents.length}</h3>
+            <h3>{pendingCount}</h3>
           </div>
         </div>
 
@@ -188,7 +89,7 @@ function Reports() {
 
           <div>
             <span>Rejected</span>
-            <h3>{rejectedEvents.length}</h3>
+            <h3>{rejectedCount}</h3>
           </div>
         </div>
       </div>
@@ -254,7 +155,7 @@ function Reports() {
               <span>Approved Events</span>
 
               <strong>
-                {approvedEvents.length}
+                {approvedCount}
               </strong>
             </div>
 
@@ -262,7 +163,7 @@ function Reports() {
               <span>Pending Events</span>
 
               <strong>
-                {pendingEvents.length}
+                {pendingCount}
               </strong>
             </div>
 
@@ -270,7 +171,7 @@ function Reports() {
               <span>Rejected Events</span>
 
               <strong>
-                {rejectedEvents.length}
+                {rejectedCount}
               </strong>
             </div>
 
@@ -278,7 +179,7 @@ function Reports() {
               <span>Cancelled Events</span>
 
               <strong>
-                {cancelledEvents.length}
+                {cancelledCount}
               </strong>
             </div>
 

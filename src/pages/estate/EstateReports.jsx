@@ -11,149 +11,23 @@ import {
   Cell,
 } from "recharts";
 
-import { getEvents } from "../../utils/eventStore";
-import { getResources } from "../../utils/resourceStore";
+import useDashboardSummary from "../../hooks/useDashboardSummary";
 
 function EstateReports() {
-  const events = getEvents();
-  const resources = getResources();
-
-  const approvedEvents = events.filter(
-    (event) => event.status === "Approved"
-  );
-
-  const rejectedEvents = events.filter(
-    (event) => event.status === "Rejected"
-  );
-
-  const cancelledEvents = events.filter(
-    (event) => event.status === "Cancelled"
-  );
-
-  const pendingEvents = events.filter(
-    (event) => event.status === "Pending"
-  );
-
-  const totalApproved = approvedEvents.length;
-  const totalRejected = rejectedEvents.length;
-
-  const venueBookings = approvedEvents.filter(
-    (event) => event.venue
-  ).length;
-
-  const resourceAllocations =
-    approvedEvents.reduce((total, event) => {
-      return (
-        total +
-        Number(event.chairs || 0) +
-        Number(event.microphones || 0) +
-        Number(event.projectors || 0)
-      );
-    }, 0);
-
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-
-  const monthlyMap = {};
-
-  events.forEach((event) => {
-    if (!event.date) {
-      return;
-    }
-
-    const date = new Date(
-      `${event.date}T00:00:00`
-    );
-
-    if (Number.isNaN(date.getTime())) {
-      return;
-    }
-
-    const month =
-      monthNames[date.getMonth()];
-
-    if (!monthlyMap[month]) {
-      monthlyMap[month] = {
-        month,
-        approved: 0,
-        rejected: 0,
-      };
-    }
-
-    if (event.status === "Approved") {
-      monthlyMap[month].approved += 1;
-    }
-
-    if (event.status === "Rejected") {
-      monthlyMap[month].rejected += 1;
-    }
-  });
-
-  const monthlyData = monthNames
-    .map((month) => {
-      return (
-        monthlyMap[month] || {
-          month,
-          approved: 0,
-          rejected: 0,
-        }
-      );
-    })
-    .filter(
-      (item) =>
-        item.approved > 0 ||
-        item.rejected > 0
-    );
-
-  const venueUsageMap = {};
-
-  approvedEvents.forEach((event) => {
-    if (!event.venue) {
-      return;
-    }
-
-    venueUsageMap[event.venue] =
-      (venueUsageMap[event.venue] || 0) + 1;
-  });
-
-  const venueData = Object.entries(
-    venueUsageMap
-  ).map(([name, value]) => ({
-    name,
-    value,
-  }));
-
-  const totalResources = resources.reduce(
-    (total, resource) =>
-      total + Number(resource.total || 0),
-    0
-  );
-
-  const availableResources =
-    resources.reduce(
-      (total, resource) =>
-        total +
-        Number(resource.available || 0),
-      0
-    );
-
-  const currentlyAllocatedResources =
-    Math.max(
-      totalResources - availableResources,
-      0
-    );
+  const summary = useDashboardSummary();
+  const totalApproved = summary.approvedEvents;
+  const totalRejected = summary.rejectedEvents;
+  const venueBookings = summary.venueUsage.reduce((total, venue) => total + venue.value, 0);
+  const resourceAllocations = summary.totalResourceRequests;
+  const monthlyData = summary.monthlyApprovals;
+  const venueData = summary.venueUsage;
+  const totalResources = summary.totalResourceQuantity;
+  const availableResources = summary.availableResourceQuantity;
+  const currentlyAllocatedResources = summary.allocatedResourceQuantity;
+  const pendingCount = summary.pendingEvents;
+  const approvedCount = summary.approvedEvents;
+  const rejectedCount = summary.rejectedEvents;
+  const cancelledCount = summary.cancelledEvents;
 
   const pieColors = [
     "#0f766e",
@@ -346,7 +220,7 @@ function EstateReports() {
             <span>Pending Requests</span>
 
             <strong>
-              {pendingEvents.length}
+              {pendingCount}
             </strong>
           </div>
 
@@ -354,7 +228,7 @@ function EstateReports() {
             <span>Approved Events</span>
 
             <strong>
-              {approvedEvents.length}
+              {approvedCount}
             </strong>
           </div>
 
@@ -362,7 +236,7 @@ function EstateReports() {
             <span>Rejected Events</span>
 
             <strong>
-              {rejectedEvents.length}
+              {rejectedCount}
             </strong>
           </div>
 
@@ -370,7 +244,7 @@ function EstateReports() {
             <span>Cancelled Events</span>
 
             <strong>
-              {cancelledEvents.length}
+              {cancelledCount}
             </strong>
           </div>
 

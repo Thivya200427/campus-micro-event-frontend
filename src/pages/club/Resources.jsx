@@ -1,7 +1,7 @@
-import { getResources } from "../../utils/resourceStore";
+import useResources from "../../hooks/useResources";
 
 function Resources() {
-  const resources = getResources();
+  const { resources } = useResources();
 
   const getResourceIcon = (name, category) => {
     const resourceName = name?.toLowerCase() || "";

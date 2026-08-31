@@ -1,20 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import {
-  addEvent,
-  getEvents,
-} from "../../utils/eventStore";
-
-import { getVenues } from "../../utils/venueStore";
-import { getResources } from "../../utils/resourceStore";
+import { createEvent } from "../../services/eventService";
+import { getApiError } from "../../services/api";
+import useEvents from "../../hooks/useEvents";
+import useVenues from "../../hooks/useVenues";
+import { getLoggedInUser } from "../../utils/authStore";
+import useResources from "../../hooks/useResources";
+import { createResourceRequest } from "../../services/resourceAllocationService";
 
 function CreateEvent() {
   const navigate = useNavigate();
 
-  const venues = getVenues();
-  const resources = getResources();
-  const events = getEvents();
+  const { venues } = useVenues();
+  const { events } = useEvents();
+  const loggedInUser = getLoggedInUser();
+  const { resources } = useResources();
+  const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -335,50 +337,49 @@ function CreateEvent() {
     return true;
   };
 
-  const saveEvent = (status) => {
-    addEvent({
-      ...formData,
+  const saveEvent = async (status) => {
+    const selectedVenue = venues.find(
+      (venue) => venue.name === formData.venue
+    );
+    const savedEvent = await createEvent(
+      { ...formData, status },
+      loggedInUser.id,
+      selectedVenue?.id
+    );
 
-      expectedParticipants: Number(
-        formData.expectedParticipants || 0
-      ),
+    const requests = [
+      [chairsResource, formData.chairs],
+      [microphonesResource, formData.microphones],
+      [projectorsResource, formData.projectors],
+    ].filter(([resource, quantity]) => resource && Number(quantity) > 0);
 
-      chairs: Number(
-        formData.chairs || 0
-      ),
-
-      microphones: Number(
-        formData.microphones || 0
-      ),
-
-      projectors: Number(
-        formData.projectors || 0
-      ),
-
-      status,
-
-      createdAt:
-        new Date().toISOString(),
-    });
-
-    navigate("/events");
+    await Promise.all(
+      requests.map(([resource, quantity]) =>
+        createResourceRequest(savedEvent.id, resource.id, quantity)
+      )
+    );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validateEvent()) {
       return;
     }
 
-    saveEvent("Pending");
-
-    alert(
-      "Event request submitted successfully."
-    );
+    setSaving(true);
+    try {
+      await saveEvent("Pending");
+      alert("Event request submitted successfully.");
+      navigate("/events");
+    } catch (error) {
+      alert(getApiError(error, "Unable to submit the event request."));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDraft = () => {
+  const handleDraft = async () => {
     if (!formData.title.trim()) {
       alert(
         "Please enter an event title first."
@@ -387,7 +388,19 @@ function CreateEvent() {
       return;
     }
 
-    saveEvent("Draft");
+    if (!validateEvent()) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await saveEvent("Draft");
+      navigate("/events");
+    } catch (error) {
+      alert(getApiError(error, "Unable to save the draft."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const selectedVenue = venues.find(
@@ -427,7 +440,6 @@ function CreateEvent() {
                 type="text"
                 name="title"
                 className="form-control"
-                placeholder="Enter event title"
                 value={formData.title}
                 onChange={handleChange}
                 required
@@ -599,7 +611,6 @@ function CreateEvent() {
                 type="number"
                 name="expectedParticipants"
                 className="form-control"
-                placeholder="Enter expected participants"
                 min="1"
                 max={
                   selectedVenue?.capacity ||
@@ -629,7 +640,6 @@ function CreateEvent() {
                 name="description"
                 className="form-control"
                 rows="4"
-                placeholder="Enter event description"
                 value={formData.description}
                 onChange={handleChange}
               ></textarea>
@@ -652,7 +662,6 @@ function CreateEvent() {
                 type="number"
                 name="chairs"
                 className="form-control"
-                placeholder="0"
                 min="0"
                 max={chairsAvailable}
                 value={formData.chairs}
@@ -674,7 +683,6 @@ function CreateEvent() {
                 type="number"
                 name="microphones"
                 className="form-control"
-                placeholder="0"
                 min="0"
                 max={
                   microphonesAvailable
@@ -700,7 +708,6 @@ function CreateEvent() {
                 type="number"
                 name="projectors"
                 className="form-control"
-                placeholder="0"
                 min="0"
                 max={
                   projectorsAvailable
@@ -723,6 +730,7 @@ function CreateEvent() {
               type="button"
               className="btn btn-outline-secondary"
               onClick={handleDraft}
+              disabled={saving}
             >
               <i className="bi bi-file-earmark me-2"></i>
               Save as Draft
@@ -731,6 +739,7 @@ function CreateEvent() {
             <button
               type="submit"
               className="btn primary-action"
+              disabled={saving}
             >
               <i className="bi bi-send me-2"></i>
               Submit Request

@@ -1,44 +1,20 @@
 import { Link } from "react-router-dom";
 
-import {
-  getEvents,
-  getMyEvents,
-} from "../../utils/eventStore";
+import useEvents from "../../hooks/useEvents";
+import { getLoggedInUser } from "../../utils/authStore";
 
-import { getEventAttendance } from "../../utils/attendanceStore";
-
-import { getUnreadNotificationCount } from "../../utils/notificationStore";
+import useAttendance from "../../hooks/useAttendance";
+import useNotifications from "../../hooks/useNotifications";
 
 function Dashboard() {
   /*
    * Get events owned by the currently
    * logged-in Club Representative.
    */
-  const myEvents = getMyEvents();
-
-  /*
-   * Legacy support:
-   * Events created before ownership support
-   * do not have createdBy.
-   */
-  const legacyEvents = getEvents().filter(
-    (event) =>
-      event.createdBy === undefined ||
-      event.createdBy === null
-  );
-
-  const events = [
-    ...myEvents,
-
-    ...legacyEvents.filter(
-      (legacyEvent) =>
-        !myEvents.some(
-          (myEvent) =>
-            String(myEvent.id) ===
-            String(legacyEvent.id)
-        )
-    ),
-  ];
+  const loggedInUser = getLoggedInUser();
+  const { events } = useEvents({ userId: loggedInUser?.id });
+  const { getEventAttendance } = useAttendance();
+  const { notifications } = useNotifications(loggedInUser?.id);
 
   /*
    * Event statistics
@@ -93,8 +69,7 @@ function Dashboard() {
    * Current logged-in user's
    * unread notifications only
    */
-  const unreadNotifications =
-    getUnreadNotificationCount();
+  const unreadNotifications = notifications.filter((item) => !item.read).length;
 
   /*
    * Latest five events

@@ -1,7 +1,7 @@
-import { getResources } from "../../utils/resourceStore";
+import useResources from "../../hooks/useResources";
 
 function ResourceAllocation() {
-  const resources = getResources();
+  const { resources } = useResources();
 
   return (
     <div>

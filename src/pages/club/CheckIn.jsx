@@ -1,37 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import {
-  getEvents,
-  getMyEvents,
-} from "../../utils/eventStore";
+import useEvents from "../../hooks/useEvents";
+import { getLoggedInUser } from "../../utils/authStore";
 
-import {
-  getEventAttendance,
-  addParticipantToEvent,
-} from "../../utils/attendanceStore";
+import { checkIn, getEventAttendance } from "../../services/attendanceService";
+import { getApiError } from "../../services/api";
 
 function CheckIn() {
-  const allEvents = getEvents();
-  const myEvents = getMyEvents();
-
-  // Temporary support for old events created before ownership was added.
-  const legacyEvents = allEvents.filter(
-    (event) =>
-      event.createdBy === undefined ||
-      event.createdBy === null
-  );
-
-  const events = [
-    ...myEvents,
-    ...legacyEvents.filter(
-      (legacyEvent) =>
-        !myEvents.some(
-          (myEvent) =>
-            String(myEvent.id) ===
-            String(legacyEvent.id)
-        )
-    ),
-  ];
+  const loggedInUser = getLoggedInUser();
+  const { events } = useEvents({ userId: loggedInUser?.id });
 
   const approvedEvents = events.filter(
     (event) => event.status === "Approved"
@@ -47,24 +24,29 @@ function CheckIn() {
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
 
+  const activeEventId = selectedEventId || (approvedEvents[0] ? String(approvedEvents[0].id) : "");
+
   const selectedEvent = approvedEvents.find(
     (event) =>
-      String(event.id) === String(selectedEventId)
+      String(event.id) === String(activeEventId)
   );
 
-  const [participants, setParticipants] = useState(
-    selectedEventId
-      ? getEventAttendance(selectedEventId)
-      : []
-  );
+  const [participants, setParticipants] = useState([]);
 
-  const loadAttendance = (eventId) => {
-    setParticipants(
-      eventId
-        ? getEventAttendance(eventId)
-        : []
-    );
+  const loadAttendance = async (eventId) => {
+    setParticipants(eventId ? await getEventAttendance(eventId) : []);
   };
+
+  useEffect(() => {
+    let active = true;
+    if (!activeEventId) {
+      return () => { active = false; };
+    }
+    getEventAttendance(activeEventId)
+      .then((data) => active && setParticipants(data))
+      .catch(() => active && setParticipants([]));
+    return () => { active = false; };
+  }, [activeEventId]);
 
   const handleEventChange = (e) => {
     const eventId = e.target.value;
@@ -76,10 +58,10 @@ function CheckIn() {
     setStudentName("");
   };
 
-  const handleCheckIn = (e) => {
+  const handleCheckIn = async (e) => {
     e.preventDefault();
 
-    if (!selectedEventId) {
+    if (!activeEventId) {
       alert("Please select an approved event.");
       return;
     }
@@ -128,25 +110,18 @@ function CheckIn() {
       return;
     }
 
-    const result = addParticipantToEvent(
-      selectedEventId,
-      {
+    try {
+      await checkIn(activeEventId, {
         studentId: studentId.trim(),
         name: studentName.trim(),
-      }
-    );
-
-    if (!result.success) {
-      alert(result.message);
-      return;
+      });
+      await loadAttendance(activeEventId);
+      setStudentId("");
+      setStudentName("");
+      alert("Participant checked in successfully.");
+    } catch (error) {
+      alert(getApiError(error, "Unable to check in this participant."));
     }
-
-    loadAttendance(selectedEventId);
-
-    setStudentId("");
-    setStudentName("");
-
-    alert("Participant checked in successfully.");
   };
 
   const expectedParticipants = Number(
@@ -198,7 +173,7 @@ function CheckIn() {
 
             <select
               className="form-select"
-              value={selectedEventId}
+              value={activeEventId}
               onChange={handleEventChange}
             >
               {approvedEvents.map((event) => (
@@ -274,7 +249,6 @@ function CheckIn() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Example: DBI003"
                   value={studentId}
                   onChange={(e) =>
                     setStudentId(e.target.value)
@@ -288,7 +262,6 @@ function CheckIn() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Enter participant name"
                   value={studentName}
                   onChange={(e) =>
                     setStudentName(e.target.value)

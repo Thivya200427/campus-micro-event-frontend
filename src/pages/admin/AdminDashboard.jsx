@@ -1,52 +1,36 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { getEvents } from "../../utils/eventStore";
-import { getUsers } from "../../utils/userStore";
-import { getVenues } from "../../utils/venueStore";
-import { getResources } from "../../utils/resourceStore";
-import { getEventAttendance } from "../../utils/attendanceStore";
+import useEvents from "../../hooks/useEvents";
+import { getUsers } from "../../services/userService";
+import useVenues from "../../hooks/useVenues";
+import useAttendance from "../../hooks/useAttendance";
+import useDashboardSummary from "../../hooks/useDashboardSummary";
 
 function AdminDashboard() {
-  const events = getEvents();
-  const users = getUsers();
-  const venues = getVenues();
-  const resources = getResources();
+  const { events } = useEvents();
+  const [users, setUsers] = useState([]);
+  const { venues } = useVenues();
+  const { getEventAttendance } = useAttendance();
+  const summary = useDashboardSummary();
 
-  const totalEvents = events.length;
+  useEffect(() => {
+    getUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
 
-  const pendingEvents = events.filter(
-    (event) => event.status === "Pending"
-  ).length;
-
-  const approvedEvents = events.filter(
-    (event) => event.status === "Approved"
-  ).length;
-
-  const rejectedEvents = events.filter(
-    (event) => event.status === "Rejected"
-  ).length;
-
-  const cancelledEvents = events.filter(
-    (event) => event.status === "Cancelled"
-  ).length;
+  const totalEvents = summary.totalEvents;
+  const pendingEvents = summary.pendingEvents;
+  const approvedEvents = summary.approvedEvents;
+  const rejectedEvents = summary.rejectedEvents;
+  const cancelledEvents = summary.cancelledEvents;
 
   const activeUsers = users.filter(
-    (user) => user.status === "Active"
+    (user) => user.status?.toUpperCase() === "ACTIVE"
   ).length;
 
-  const totalParticipants = events.reduce(
-    (total, event) =>
-      total + Number(event.expectedParticipants || 0),
-    0
-  );
-
-  const totalCheckIns = events.reduce(
-    (total, event) =>
-      total + getEventAttendance(event.id).length,
-    0
-  );
-
-  const totalVenues = venues.length;
+  const totalParticipants = summary.expectedParticipants;
+  const totalCheckIns = summary.totalAttendance;
+  const totalVenues = summary.totalVenues;
 
   const bookedVenues = venues.filter(
     (venue) => venue.status === "Booked"
@@ -56,24 +40,9 @@ function AdminDashboard() {
     (venue) => venue.status === "Available"
   ).length;
 
-  const totalResourceQuantity = resources.reduce(
-    (total, resource) =>
-      total + Number(resource.total || 0),
-    0
-  );
-
-  const availableResourceQuantity =
-    resources.reduce(
-      (total, resource) =>
-        total + Number(resource.available || 0),
-      0
-    );
-
-  const allocatedResources = Math.max(
-    totalResourceQuantity -
-      availableResourceQuantity,
-    0
-  );
+  const totalResourceQuantity = summary.totalResourceQuantity;
+  const availableResourceQuantity = summary.availableResourceQuantity;
+  const allocatedResources = summary.allocatedResourceQuantity;
 
   const recentEvents = [...events]
     .sort((a, b) => {

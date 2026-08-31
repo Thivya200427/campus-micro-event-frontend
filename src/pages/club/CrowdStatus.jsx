@@ -1,34 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import {
-  getEvents,
-  getMyEvents,
-} from "../../utils/eventStore";
+import useEvents from "../../hooks/useEvents";
+import { getLoggedInUser } from "../../utils/authStore";
 
-import { getEventAttendance } from "../../utils/attendanceStore";
+import { getCrowdStatus } from "../../services/dashboardService";
 
 function CrowdStatus() {
-  const allEvents = getEvents();
-  const myEvents = getMyEvents();
-
-  // Temporary support for old events created before ownership was added.
-  const legacyEvents = allEvents.filter(
-    (event) =>
-      event.createdBy === undefined ||
-      event.createdBy === null
-  );
-
-  const events = [
-    ...myEvents,
-    ...legacyEvents.filter(
-      (legacyEvent) =>
-        !myEvents.some(
-          (myEvent) =>
-            String(myEvent.id) ===
-            String(legacyEvent.id)
-        )
-    ),
-  ];
+  const loggedInUser = getLoggedInUser();
+  const { events } = useEvents({ userId: loggedInUser?.id });
 
   const approvedEvents = events.filter(
     (event) => event.status === "Approved"
@@ -41,45 +20,37 @@ function CrowdStatus() {
         : ""
     );
 
+  const activeEventId = selectedEventId || (approvedEvents[0] ? String(approvedEvents[0].id) : "");
+
   const selectedEvent = approvedEvents.find(
     (event) =>
-      String(event.id) === String(selectedEventId)
+      String(event.id) === String(activeEventId)
   );
 
-  const participants = selectedEventId
-    ? getEventAttendance(selectedEventId)
-    : [];
+  const [crowdData, setCrowdData] = useState({
+    attendance: 0,
+    venueCapacity: 0,
+    occupancyPercentage: 0,
+    status: "Safe",
+    recommendation: "Crowd data will appear after check-in.",
+  });
 
-  const expectedParticipants = Number(
-    selectedEvent?.expectedParticipants || 0
-  );
+  useEffect(() => {
+    if (!activeEventId) return;
+    getCrowdStatus(activeEventId).then(setCrowdData).catch(() => {
+      setCrowdData({ attendance: 0, venueCapacity: 0, occupancyPercentage: 0, status: "Safe", recommendation: "Unable to load crowd information right now." });
+    });
+  }, [activeEventId]);
 
-  const checkedIn = participants.length;
-
-  const percentage =
-    expectedParticipants > 0
-      ? Math.min(
-          Math.round(
-            (checkedIn / expectedParticipants) * 100
-          ),
-          100
-        )
-      : 0;
-
-  let crowdStatus = "Low";
-
-  if (percentage >= 100) {
-    crowdStatus = "Full";
-  } else if (percentage >= 80) {
-    crowdStatus = "High";
-  } else if (percentage >= 50) {
-    crowdStatus = "Moderate";
-  }
+  const checkedIn = crowdData.attendance;
+  const venueCapacity = crowdData.venueCapacity;
+  const percentage = crowdData.occupancyPercentage;
+  const crowdStatus = crowdData.status;
 
   const getCrowdClass = () => {
     if (
       crowdStatus === "High" ||
-      crowdStatus === "Full"
+      crowdStatus === "Critical"
     ) {
       return "crowd-high";
     }
@@ -92,19 +63,7 @@ function CrowdStatus() {
   };
 
   const getCrowdMessage = () => {
-    if (crowdStatus === "Full") {
-      return "The venue has reached the expected participant capacity. Control further entry carefully.";
-    }
-
-    if (crowdStatus === "High") {
-      return "The venue is approaching full capacity. Monitor entry carefully.";
-    }
-
-    if (crowdStatus === "Moderate") {
-      return "The event currently has a moderate crowd level.";
-    }
-
-    return "The venue currently has a low crowd level.";
+    return crowdData.recommendation;
   };
 
   return (
@@ -144,7 +103,7 @@ function CrowdStatus() {
 
             <select
               className="form-select"
-              value={selectedEventId}
+              value={activeEventId}
               onChange={(e) =>
                 setSelectedEventId(e.target.value)
               }
@@ -168,8 +127,8 @@ function CrowdStatus() {
               </div>
 
               <div>
-                <span>Expected</span>
-                <h3>{expectedParticipants}</h3>
+                <span>Venue Capacity</span>
+                <h3>{venueCapacity}</h3>
               </div>
             </div>
 
@@ -233,7 +192,7 @@ function CrowdStatus() {
                 <span>Current Occupancy</span>
 
                 <strong>
-                  {checkedIn} / {expectedParticipants}
+                  {checkedIn} / {venueCapacity}
                 </strong>
               </div>
 

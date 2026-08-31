@@ -1,28 +1,19 @@
-import { useEffect, useState } from "react";
-
-import {
-  getMyNotifications,
-  markMyNotificationsAsRead,
-} from "../../utils/notificationStore";
+import useNotifications from "../../hooks/useNotifications";
+import { markAllNotificationsRead } from "../../services/notificationService";
+import { getLoggedInUser } from "../../utils/authStore";
+import { getApiError } from "../../services/api";
 
 function Notifications() {
-  const [notifications, setNotifications] = useState([]);
+  const loggedInUser = getLoggedInUser();
+  const { notifications, loadNotifications } = useNotifications(loggedInUser?.id);
 
-  useEffect(() => {
-    loadNotifications();
-  }, []);
-
-  const loadNotifications = () => {
-    const myNotifications = getMyNotifications();
-
-    setNotifications(myNotifications);
-  };
-
-  const markAllAsRead = () => {
-    const updatedNotifications =
-      markMyNotificationsAsRead();
-
-    setNotifications(updatedNotifications);
+  const markAllAsRead = async () => {
+    try {
+      await markAllNotificationsRead(notifications);
+      await loadNotifications();
+    } catch (error) {
+      alert(getApiError(error, "Unable to update notifications."));
+    }
   };
 
   const getIcon = (type) => {

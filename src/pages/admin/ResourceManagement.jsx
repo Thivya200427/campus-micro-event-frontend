@@ -1,14 +1,15 @@
 import { useState } from "react";
 
 import {
-  getResources,
-  addResource,
+  createResource,
   updateResource,
   deleteResource,
-} from "../../utils/resourceStore";
+} from "../../services/resourceService";
+import useResources from "../../hooks/useResources";
+import { getApiError } from "../../services/api";
 
 function ResourceManagement() {
-  const [resources, setResources] = useState(getResources());
+  const { resources, loadResources } = useResources();
 
   const [showForm, setShowForm] = useState(false);
 
@@ -20,10 +21,6 @@ function ResourceManagement() {
     total: "",
     available: "",
   });
-
-  const refreshResources = () => {
-    setResources(getResources());
-  };
 
   const handleChange = (e) => {
     setFormData({
@@ -70,7 +67,7 @@ function ResourceManagement() {
     setShowForm(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (
@@ -103,21 +100,22 @@ function ResourceManagement() {
       available,
     };
 
-    if (editingResource) {
-      updateResource(editingResource.id, resourceData);
-
-      alert("Resource updated successfully.");
-    } else {
-      addResource(resourceData);
-
-      alert("Resource added successfully.");
+    try {
+      if (editingResource) {
+        await updateResource(editingResource.id, resourceData);
+        alert("Resource updated successfully.");
+      } else {
+        await createResource(resourceData);
+        alert("Resource added successfully.");
+      }
+      await loadResources();
+      resetForm();
+    } catch (error) {
+      alert(getApiError(error, "Unable to save the resource."));
     }
-
-    refreshResources();
-    resetForm();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this resource?"
     );
@@ -126,11 +124,13 @@ function ResourceManagement() {
       return;
     }
 
-    deleteResource(id);
-
-    refreshResources();
-
-    alert("Resource deleted successfully.");
+    try {
+      await deleteResource(id);
+      await loadResources();
+      alert("Resource deleted successfully.");
+    } catch (error) {
+      alert(getApiError(error, "Unable to delete the resource."));
+    }
   };
 
   return (
@@ -171,7 +171,6 @@ function ResourceManagement() {
                   type="text"
                   name="name"
                   className="form-control"
-                  placeholder="Enter resource name"
                   value={formData.name}
                   onChange={handleChange}
                   required
@@ -187,7 +186,6 @@ function ResourceManagement() {
                   type="text"
                   name="category"
                   className="form-control"
-                  placeholder="Example: Furniture, Audio, Equipment"
                   value={formData.category}
                   onChange={handleChange}
                   required
@@ -204,7 +202,6 @@ function ResourceManagement() {
                   name="total"
                   className="form-control"
                   min="0"
-                  placeholder="Enter total quantity"
                   value={formData.total}
                   onChange={handleChange}
                   required
@@ -221,7 +218,6 @@ function ResourceManagement() {
                   name="available"
                   className="form-control"
                   min="0"
-                  placeholder="Enter available quantity"
                   value={formData.available}
                   onChange={handleChange}
                   required

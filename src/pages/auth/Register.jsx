@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { registerUser } from "../../utils/userStore";
+import { createUser } from "../../services/userService";
+import { getApiError } from "../../services/api";
 
 function Register() {
   const navigate = useNavigate();
@@ -9,10 +10,10 @@ function Register() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    role: "club",
     password: "",
     confirmPassword: "",
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -21,7 +22,7 @@ function Register() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
@@ -34,21 +35,23 @@ function Register() {
       return;
     }
 
-    const result = registerUser({
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      role: "club",
-      password: formData.password,
-    });
+    setLoading(true);
+    try {
+      await createUser({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        role: "club",
+        password: formData.password,
+        status: "ACTIVE",
+      });
 
-    if (!result.success) {
-      alert(result.message);
-      return;
+      alert("Registration successful");
+      navigate("/login");
+    } catch (requestError) {
+      alert(getApiError(requestError, "Registration failed"));
+    } finally {
+      setLoading(false);
     }
-
-    alert("Registration successful");
-
-    navigate("/login");
   };
 
   return (
@@ -75,7 +78,6 @@ function Register() {
               type="text"
               name="name"
               className="form-control"
-              placeholder="Enter your full name"
               value={formData.name}
               onChange={handleChange}
               required
@@ -92,31 +94,20 @@ function Register() {
               type="email"
               name="email"
               className="form-control"
-              placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
               required
             />
           </div>
 
-          {/* Role */}
           <div className="mb-3">
             <label className="form-label">
               Role
             </label>
 
-            <select
-              name="role"
-              className="form-select"
-              value={formData.role}
-              onChange={handleChange}
-              required
-              disabled
-            >
-              <option value="club">
-                Club Representative
-              </option>
-            </select>
+            <div className="form-control bg-light" aria-readonly="true">
+              Club Representative
+            </div>
 
             <small className="text-muted">
               Public registration is available only for Club Representatives.
@@ -133,7 +124,6 @@ function Register() {
               type="password"
               name="password"
               className="form-control"
-              placeholder="Enter password"
               value={formData.password}
               onChange={handleChange}
               minLength="6"
@@ -151,7 +141,6 @@ function Register() {
               type="password"
               name="confirmPassword"
               className="form-control"
-              placeholder="Confirm password"
               value={formData.confirmPassword}
               onChange={handleChange}
               minLength="6"
@@ -163,8 +152,9 @@ function Register() {
           <button
             type="submit"
             className="register-btn w-100"
+            disabled={loading}
           >
-            Create Account
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
         </form>
 
