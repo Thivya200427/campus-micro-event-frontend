@@ -17,6 +17,7 @@ function UserManagement() {
     email: "",
     role: "club",
     password: "",
+    status: "ACTIVE",
   });
 
   async function loadUsers() {
@@ -67,7 +68,7 @@ function UserManagement() {
         email: formData.email.trim(),
         role: formData.role,
         password: formData.password,
-        status: "ACTIVE",
+        status: formData.status,
       });
 
       alert("User created successfully");
@@ -76,6 +77,7 @@ function UserManagement() {
         email: "",
         role: "club",
         password: "",
+        status: "ACTIVE",
       });
       setShowAddUser(false);
       await loadUsers();
@@ -245,6 +247,23 @@ function UserManagement() {
                   minLength="6"
                   required
                 />
+              </div>
+
+              <div className="col-md-6 mb-3">
+                <label className="form-label">
+                  Status
+                </label>
+
+                <select
+                  name="status"
+                  className="form-select"
+                  value={formData.status}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
               </div>
             </div>
 

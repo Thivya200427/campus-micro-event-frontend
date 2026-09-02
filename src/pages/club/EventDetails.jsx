@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { cancelEvent, getMyEvents } from "../../services/eventService";
+import { cancelEvent, getMyEvents, submitDraft } from "../../services/eventService";
 import { getApiError } from "../../services/api";
 import { getLoggedInUser } from "../../utils/authStore";
 
@@ -39,6 +39,16 @@ function EventDetails() {
     }
   };
 
+  const handleSubmitDraft = async () => {
+    try {
+      await submitDraft(event.id, loggedInUser.id);
+      alert("Event request submitted successfully.");
+      navigate("/events");
+    } catch (error) {
+      alert(getApiError(error, "Unable to submit this draft."));
+    }
+  };
+
   if (loading) {
     return <div className="dashboard-section text-center py-5">Loading event...</div>;
   }
@@ -62,6 +72,11 @@ function EventDetails() {
       <div className="dashboard-title">
         <div><h2>Event Details</h2><p>View complete information about your event request.</p></div>
         <div className="d-flex gap-2">
+          {event.status === "Draft" && (
+            <button type="button" className="btn primary-action" onClick={handleSubmitDraft}>
+              <i className="bi bi-send me-2"></i>Submit Request
+            </button>
+          )}
           {event.status === "Approved" && (
             <button type="button" className="btn btn-danger" onClick={handleCancel}>
               <i className="bi bi-x-circle me-2"></i>Cancel Event

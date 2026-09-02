@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { createUser } from "../../services/userService";
+import { registerClubUser } from "../../services/userService";
 import { getApiError } from "../../services/api";
 
 function Register() {
@@ -37,12 +37,10 @@ function Register() {
 
     setLoading(true);
     try {
-      await createUser({
+      await registerClubUser({
         name: formData.name.trim(),
         email: formData.email.trim(),
-        role: "club",
         password: formData.password,
-        status: "ACTIVE",
       });
 
       alert("Registration successful");

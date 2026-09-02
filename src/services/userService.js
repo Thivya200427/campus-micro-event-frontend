@@ -6,7 +6,16 @@ export async function getUsers() {
 }
 
 export async function createUser(user) {
-  const response = await api.post("/users", user);
+  const response = await api.post("/users/admin-create", user);
+  return response.data;
+}
+
+export async function registerClubUser(user) {
+  const response = await api.post("/auth/register", {
+    name: user.name,
+    email: user.email,
+    password: user.password,
+  });
   return response.data;
 }
 

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -6,692 +7,189 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
 } from "recharts";
-import { useEffect, useState } from "react";
 
+import { getEvents } from "../../services/eventService";
 import { getUsers } from "../../services/userService";
-import useDashboardSummary from "../../hooks/useDashboardSummary";
+import { getVenues } from "../../services/venueService";
 
-function AdminReports() {
+export default function AdminReports() {
+  const [events, setEvents] = useState([]);
   const [users, setUsers] = useState([]);
-  const summary = useDashboardSummary();
+  const [venues, setVenues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getUsers().then(setUsers).catch(() => setUsers([]));
+    async function loadReports() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [eventData, userData, venueData] = await Promise.all([
+          getEvents(),
+          getUsers(),
+          getVenues(),
+        ]);
+
+        setEvents(Array.isArray(eventData) ? eventData : []);
+        setUsers(Array.isArray(userData) ? userData : []);
+        setVenues(Array.isArray(venueData) ? venueData : []);
+      } catch (err) {
+        console.error("Unable to load reports", err);
+        setError("Unable to load report data.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadReports();
   }, []);
 
-  // =====================================================
-  // USER STATISTICS
-  // =====================================================
+  const eventStatusData = useMemo(() => {
+    const statusCounts = {};
 
-  const totalUsers = users.length;
+    events.forEach((event) => {
+      const status = event.status || "UNKNOWN";
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
 
-  const activeUsers = users.filter(
-    (user) => user.status?.toUpperCase() === "ACTIVE"
+    return Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count,
+    }));
+  }, [events]);
+
+  const clubUsers = users.filter(
+    (user) => user.role?.toLowerCase() === "club"
   ).length;
 
-  const inactiveUsers =
-    totalUsers - activeUsers;
+  const estateUsers = users.filter(
+    (user) => user.role?.toLowerCase() === "estate"
+  ).length;
 
-  // =====================================================
-  // EVENT STATISTICS
-  // =====================================================
+  const adminUsers = users.filter(
+    (user) => user.role?.toLowerCase() === "admin"
+  ).length;
 
-  const totalEvents = summary.totalEvents;
-  const approvedCount = summary.approvedEvents;
-  const pendingCount = summary.pendingEvents;
-  const rejectedCount = summary.rejectedEvents;
-  const cancelledCount = summary.cancelledEvents;
-
-  // =====================================================
-  // PARTICIPANT / ATTENDANCE STATISTICS
-  // =====================================================
-
-  const totalParticipants = summary.expectedParticipants;
-  const approvedExpectedParticipants = summary.approvedExpectedParticipants;
-  const totalCheckIns = summary.totalAttendance;
-
-  const attendanceRate =
-    approvedExpectedParticipants > 0
-      ? Math.round(
-          (totalCheckIns /
-            approvedExpectedParticipants) *
-            100
-        )
-      : 0;
-
-  // =====================================================
-  // VENUE STATISTICS
-  // =====================================================
-
-  const totalVenues = summary.totalVenues;
-  const bookedVenues = summary.venueUsage.reduce((total, venue) => total + venue.value, 0);
-  const availableVenues = Math.max(totalVenues - summary.venueUsage.length, 0);
-
-  // =====================================================
-  // RESOURCE STATISTICS
-  // =====================================================
-
-  const totalResourceQuantity = summary.totalResourceQuantity;
-  const availableResources = summary.availableResourceQuantity;
-  const allocatedResources = summary.allocatedResourceQuantity;
-
-  // =====================================================
-  // MONTHLY EVENT CHART
-  // =====================================================
-
-  const monthlyEvents = summary.monthlyEvents;
-
-  // =====================================================
-  // EVENT STATUS CHART
-  // =====================================================
-
-  const statusData = [
-    {
-      name: "Approved",
-      value: approvedCount,
-    },
-    {
-      name: "Pending",
-      value: pendingCount,
-    },
-    {
-      name: "Rejected",
-      value: rejectedCount,
-    },
-    {
-      name: "Cancelled",
-      value: cancelledCount,
-    },
-  ];
-
-  const pieColors = [
-    "#0f766e",
-    "#f59e0b",
-    "#dc2626",
-    "#64748b",
-  ];
+  if (loading) {
+    return (
+      <div className="container-fluid py-4">
+        <p className="text-muted mb-0">Loading reports...</p>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="dashboard-title">
+    <div className="container-fluid py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2>
-            Admin Reports
-          </h2>
-
-          <p>
-            View complete system users,
-            events, attendance, venues and
-            resource statistics.
+          <h2 className="fw-bold mb-1">Reports</h2>
+          <p className="text-muted mb-0">
+            Overview of campus event management data.
           </p>
         </div>
       </div>
 
-      {/* =================================================
-          MAIN STATISTICS
-      ================================================= */}
-
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="bi bi-people"></i>
-          </div>
-
-          <div>
-            <span>Total Users</span>
-            <h3>{totalUsers}</h3>
-          </div>
+      {error && (
+        <div className="alert alert-danger" role="alert">
+          {error}
         </div>
+      )}
 
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="bi bi-person-check"></i>
-          </div>
-
-          <div>
-            <span>Active Users</span>
-            <h3>{activeUsers}</h3>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="bi bi-calendar-event"></i>
-          </div>
-
-          <div>
-            <span>Total Events</span>
-            <h3>{totalEvents}</h3>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="bi bi-check-circle"></i>
-          </div>
-
-          <div>
-            <span>Approved</span>
-            <h3>{approvedCount}</h3>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="bi bi-hourglass-split"></i>
-          </div>
-
-          <div>
-            <span>Pending</span>
-            <h3>{pendingCount}</h3>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="bi bi-x-circle"></i>
-          </div>
-
-          <div>
-            <span>Rejected</span>
-            <h3>{rejectedCount}</h3>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="bi bi-calendar-x"></i>
-          </div>
-
-          <div>
-            <span>Cancelled</span>
-            <h3>{cancelledCount}</h3>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <i className="bi bi-person-check-fill"></i>
-          </div>
-
-          <div>
-            <span>
-              Actual Check-Ins
-            </span>
-
-            <h3>
-              {totalCheckIns}
-            </h3>
-          </div>
-        </div>
-      </div>
-
-      {/* =================================================
-          CHARTS
-      ================================================= */}
-
-      <div className="report-grid">
-        <div className="report-card">
-          <div className="section-header">
-            <div>
-              <h4>
-                Monthly Events
-              </h4>
-
-              <p>
-                Number of system events
-                scheduled for each month.
-              </p>
+      <div className="row g-3 mb-4">
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <p className="text-muted mb-1">Total Events</p>
+              <h3 className="fw-bold mb-0">{events.length}</h3>
             </div>
           </div>
+        </div>
 
-          {monthlyEvents.length ===
-          0 ? (
-            <div className="text-center py-5">
-              <p className="text-muted">
-                No event data available
-                for the chart.
-              </p>
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <p className="text-muted mb-1">Total Users</p>
+              <h3 className="fw-bold mb-0">{users.length}</h3>
             </div>
-          ) : (
-            <ResponsiveContainer
-              width="100%"
-              height={320}
-            >
-              <BarChart
-                data={
-                  monthlyEvents
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <p className="text-muted mb-1">Total Venues</p>
+              <h3 className="fw-bold mb-0">{venues.length}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <p className="text-muted mb-1">Approved Events</p>
+              <h3 className="fw-bold mb-0">
+                {
+                  events.filter(
+                    (event) =>
+                      event.status?.toUpperCase() === "APPROVED"
+                  ).length
                 }
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                />
-
-                <XAxis
-                  dataKey="month"
-                />
-
-                <YAxis
-                  allowDecimals={
-                    false
-                  }
-                />
-
-                <Tooltip />
-
-                <Bar
-                  dataKey="events"
-                  name="Events"
-                  fill="#0f766e"
-                  radius={[
-                    5,
-                    5,
-                    0,
-                    0,
-                  ]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        <div className="report-card">
-          <div className="section-header">
-            <div>
-              <h4>
-                Event Status
-              </h4>
-
-              <p>
-                Current system event
-                status distribution.
-              </p>
+              </h3>
             </div>
           </div>
-
-          {totalEvents === 0 ? (
-            <div className="text-center py-5">
-              <p className="text-muted">
-                No event status data
-                available.
-              </p>
-            </div>
-          ) : (
-            <ResponsiveContainer
-              width="100%"
-              height={320}
-            >
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="45%"
-                  outerRadius={90}
-                  label={({
-                    name,
-                    value,
-                  }) =>
-                    value > 0
-                      ? `${name}: ${value}`
-                      : ""
-                  }
-                >
-                  {statusData.map(
-                    (
-                      item,
-                      index
-                    ) => (
-                      <Cell
-                        key={
-                          item.name
-                        }
-                        fill={
-                          pieColors[
-                            index
-                          ]
-                        }
-                      />
-                    )
-                  )}
-                </Pie>
-
-                <Tooltip />
-
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
         </div>
       </div>
 
-      {/* =================================================
-          SYSTEM SUMMARY
-      ================================================= */}
+      <div className="row g-4">
+        <div className="col-lg-8">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <h5 className="fw-bold mb-4">Events by Status</h5>
 
-      <div className="dashboard-section mt-4">
-        <div className="section-header">
-          <div>
-            <h4>
-              System Summary
-            </h4>
-
-            <p>
-              Complete system activity
-              and resource overview.
-            </p>
+              {eventStatusData.length === 0 ? (
+                <p className="text-muted mb-0">No event data available.</p>
+              ) : (
+                <div style={{ width: "100%", height: 320 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={eventStatusData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="status" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#13877f" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="table-responsive">
-          <table className="table dashboard-table">
-            <thead>
-              <tr>
-                <th>
-                  Category
-                </th>
+        <div className="col-lg-4">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <h5 className="fw-bold mb-4">Users by Role</h5>
 
-                <th>
-                  Total
-                </th>
+              <div className="d-flex justify-content-between py-2 border-bottom">
+                <span>Club Representatives</span>
+                <strong>{clubUsers}</strong>
+              </div>
 
-                <th>
-                  Description
-                </th>
-              </tr>
-            </thead>
+              <div className="d-flex justify-content-between py-2 border-bottom">
+                <span>Estate Managers</span>
+                <strong>{estateUsers}</strong>
+              </div>
 
-            <tbody>
-              <tr>
-                <td>
-                  Registered Users
-                </td>
-
-                <td>
-                  {totalUsers}
-                </td>
-
-                <td>
-                  Total user accounts
-                  registered in the
-                  system.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Active Users
-                </td>
-
-                <td>
-                  {activeUsers}
-                </td>
-
-                <td>
-                  Users currently
-                  allowed to sign in.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Inactive Users
-                </td>
-
-                <td>
-                  {inactiveUsers}
-                </td>
-
-                <td>
-                  User accounts
-                  currently disabled.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Total Event Requests
-                </td>
-
-                <td>
-                  {totalEvents}
-                </td>
-
-                <td>
-                  All event requests
-                  submitted by Club
-                  Representatives.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  <span className="status approved">
-                    Approved
-                  </span>
-                </td>
-
-                <td>
-                  {approvedCount}
-                </td>
-
-                <td>
-                  Events approved by
-                  the Estate Manager.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  <span className="status pending">
-                    Pending
-                  </span>
-                </td>
-
-                <td>
-                  {pendingCount}
-                </td>
-
-                <td>
-                  Events awaiting
-                  Estate Manager
-                  review.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  <span className="status rejected">
-                    Rejected
-                  </span>
-                </td>
-
-                <td>
-                  {rejectedCount}
-                </td>
-
-                <td>
-                  Events rejected by
-                  the Estate Manager.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Cancelled Events
-                </td>
-
-                <td>
-                  {cancelledCount}
-                </td>
-
-                <td>
-                  Approved events
-                  cancelled by Club
-                  Representatives.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Expected Participants
-                </td>
-
-                <td>
-                  {totalParticipants}
-                </td>
-
-                <td>
-                  Total expected
-                  participants across
-                  all event requests.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Actual Check-Ins
-                </td>
-
-                <td>
-                  {totalCheckIns}
-                </td>
-
-                <td>
-                  Participants actually
-                  checked into approved
-                  events.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Attendance Rate
-                </td>
-
-                <td>
-                  {attendanceRate}%
-                </td>
-
-                <td>
-                  Actual check-ins
-                  compared with expected
-                  participants for
-                  currently approved
-                  events.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Total Venues
-                </td>
-
-                <td>
-                  {totalVenues}
-                </td>
-
-                <td>
-                  Total campus venues
-                  managed by the
-                  system.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Booked Venues
-                </td>
-
-                <td>
-                  {bookedVenues}
-                </td>
-
-                <td>
-                  Venues with active
-                  booking records.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Available Venues
-                </td>
-
-                <td>
-                  {availableVenues}
-                </td>
-
-                <td>
-                  Venues currently
-                  marked available.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Total Resource
-                  Quantity
-                </td>
-
-                <td>
-                  {
-                    totalResourceQuantity
-                  }
-                </td>
-
-                <td>
-                  Total quantity of all
-                  campus resources.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Allocated Resources
-                </td>
-
-                <td>
-                  {allocatedResources}
-                </td>
-
-                <td>
-                  Resource quantities
-                  allocated to approved
-                  events.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  Available Resources
-                </td>
-
-                <td>
-                  {availableResources}
-                </td>
-
-                <td>
-                  Resource quantities
-                  currently available
-                  for future events.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              <div className="d-flex justify-content-between py-2">
+                <span>System Admins</span>
+                <strong>{adminUsers}</strong>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-export default AdminReports;

@@ -8,7 +8,7 @@ const mapResource = (resource) => ({
 
 export async function getResources() {
   const response = await api.get("/resources");
-  return response.data.map(mapResource);
+  return Array.isArray(response.data) ? response.data.map(mapResource) : [];
 }
 
 export async function createResource(resource) {

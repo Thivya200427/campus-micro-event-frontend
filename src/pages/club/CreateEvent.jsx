@@ -33,10 +33,13 @@ function CreateEvent() {
   });
 
   const getResourceByName = (name) => {
+    const normalizeResourceName = (value) =>
+      value?.trim().toLowerCase().replace(/s$/, "");
+
     return resources.find(
       (resource) =>
-        resource.name?.toLowerCase() ===
-        name.toLowerCase()
+        normalizeResourceName(resource.name) ===
+        normalizeResourceName(name)
     );
   };
 
@@ -108,11 +111,16 @@ function CreateEvent() {
     }
 
     return events.some((event) => {
-      if (event.status !== "Approved") {
+      if (event.status?.toUpperCase() !== "APPROVED") {
         return false;
       }
 
-      if (event.venue !== venueName) {
+      const selectedVenue = venues.find((venue) => venue.name === venueName);
+      const isSameVenue = event.venueId
+        ? String(event.venueId) === String(selectedVenue?.id)
+        : event.venue === venueName;
+
+      if (!isSameVenue) {
         return false;
       }
 

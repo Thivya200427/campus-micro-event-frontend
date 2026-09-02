@@ -9,7 +9,7 @@ const mapVenue = (venue) => ({
 
 export async function getVenues() {
   const response = await api.get("/venues");
-  return response.data.map(mapVenue);
+  return Array.isArray(response.data) ? response.data.map(mapVenue) : [];
 }
 
 export async function createVenue(venue) {

@@ -21,12 +21,12 @@ export async function getEvents(status) {
   const response = await api.get("/events", {
     params: status ? { status: status.toUpperCase() } : {},
   });
-  return response.data.map(mapEvent);
+  return Array.isArray(response.data) ? response.data.map(mapEvent) : [];
 }
 
 export async function getMyEvents(userId) {
   const response = await api.get(`/events/user/${userId}`);
-  return response.data.map(mapEvent);
+  return Array.isArray(response.data) ? response.data.map(mapEvent) : [];
 }
 
 export async function getEvent(id) {
@@ -60,6 +60,13 @@ export async function updateEvent(id, event) {
     endTime: event.endTime,
     expectedParticipants: Number(event.expectedParticipants),
     venue: event.venueId ? { id: event.venueId } : null,
+  });
+  return mapEvent(response.data);
+}
+
+export async function submitDraft(id, userId) {
+  const response = await api.put(`/events/${id}/submit`, null, {
+    params: { userId },
   });
   return mapEvent(response.data);
 }

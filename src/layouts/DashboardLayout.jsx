@@ -1,13 +1,6 @@
-import {
-  Outlet,
-  NavLink,
-  useNavigate,
-} from "react-router-dom";
-
-import {
-  logoutUser,
-  getLoggedInUser,
-} from "../utils/authStore";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { logoutUser } from "../utils/authStore";
+import { getLoggedInUser } from "../utils/authStore";
 
 function DashboardLayout() {
   const navigate = useNavigate();
@@ -16,22 +9,6 @@ function DashboardLayout() {
   const handleLogout = () => {
     logoutUser();
     navigate("/login");
-  };
-
-  const getRoleLabel = (role) => {
-    if (role === "club") {
-      return "Club Representative";
-    }
-
-    if (role === "estate") {
-      return "Estate Manager";
-    }
-
-    if (role === "admin") {
-      return "System Admin";
-    }
-
-    return role || "Club Representative";
   };
 
   return (
@@ -63,18 +40,18 @@ function DashboardLayout() {
           </NavLink>
 
           <NavLink to="/check-in">
-            <i className="bi bi-person-check"></i>
-            <span>Check-In</span>
+          <i className="bi bi-person-check"></i>
+          <span>Check-In</span>
           </NavLink>
 
           <NavLink to="/crowd-status">
-            <i className="bi bi-activity"></i>
-            <span>Crowd Status</span>
+          <i className="bi bi-activity"></i>
+          <span>Crowd Status</span>
           </NavLink>
 
-          <NavLink to="/recommendation">
-            <i className="bi bi-stars"></i>
-            <span>Recommendations</span>
+          <NavLink to="/recommendation"> 
+          <i className="bi bi-stars"></i>
+          <span>AI Recommendation</span>
           </NavLink>
 
           <NavLink to="/venues">
@@ -96,7 +73,8 @@ function DashboardLayout() {
             <i className="bi bi-bar-chart"></i>
             Reports
           </NavLink>
-        </nav>
+          
+          </nav>
 
         <button
           className="logout-btn"
@@ -124,16 +102,8 @@ function DashboardLayout() {
             </div>
 
             <div>
-              <strong>
-                {loggedInUser?.name ||
-                  "Club Representative"}
-              </strong>
-
-              <small>
-                {getRoleLabel(
-                  loggedInUser?.role
-                )}
-              </small>
+              <strong>{loggedInUser?.name || "Club Representative"}</strong>
+              <small>{loggedInUser?.role || "Club Representative"}</small>
             </div>
           </div>
         </header>
