@@ -6,6 +6,7 @@ import {
   deleteUser,
 } from "../../services/userService";
 import { getApiError } from "../../services/api";
+import { getLoggedInUser } from "../../utils/authStore";
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -87,6 +88,13 @@ function UserManagement() {
   };
 
   const handleToggleStatus = async (user) => {
+    const loggedInUser = getLoggedInUser();
+
+    if (String(loggedInUser?.id) === String(user.id)) {
+      alert("You cannot disable your own account.");
+      return;
+    }
+
     const isActive = user.status?.toUpperCase() === "ACTIVE";
     try {
       await updateUser(user.id, {
@@ -98,7 +106,14 @@ function UserManagement() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (user) => {
+    const loggedInUser = getLoggedInUser();
+
+    if (String(loggedInUser?.id) === String(user.id)) {
+      alert("You cannot delete your own account.");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Are you sure you want to delete this user?"
     );
@@ -108,7 +123,7 @@ function UserManagement() {
     }
 
     try {
-      await deleteUser(id);
+      await deleteUser(user.id);
       await loadUsers();
     } catch (error) {
       alert(getApiError(error, "Unable to delete user"));
@@ -378,7 +393,7 @@ function UserManagement() {
                         type="button"
                         className="btn btn-sm btn-outline-danger"
                         onClick={() =>
-                          handleDelete(user.id)
+                          handleDelete(user)
                         }
                       >
                         Delete
