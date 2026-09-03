@@ -1,7 +1,9 @@
 import useVenues from "../../hooks/useVenues";
+import { useNavigate } from "react-router-dom";
 
 function Venues() {
   const { venues } = useVenues();
+  const navigate = useNavigate();
 
   return (
     <div>
@@ -52,6 +54,9 @@ function Venues() {
             <button
               className="btn venue-button w-100"
               disabled={venue.status === "Booked"}
+              onClick={() => navigate("/events/create", {
+                state: { preferredVenueId: venue.id },
+              })}
             >
               {venue.status === "Available"
                 ? "Select Venue"

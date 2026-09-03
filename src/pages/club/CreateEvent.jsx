@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { createEvent } from "../../services/eventService";
 import { getApiError } from "../../services/api";
@@ -11,12 +11,16 @@ import { createResourceRequest } from "../../services/resourceAllocationService"
 
 function CreateEvent() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { venues } = useVenues();
   const { events } = useEvents();
   const loggedInUser = getLoggedInUser();
   const { resources } = useResources();
   const [saving, setSaving] = useState(false);
+  const chairsInputRef = useRef(null);
+  const microphonesInputRef = useRef(null);
+  const projectorsInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -100,12 +104,13 @@ function CreateEvent() {
    * on the SAME DATE and overlapping time.
    */
   const isVenueBookedForSelectedTime = (
-    venueName
+    venueName,
+    schedule = formData
   ) => {
     if (
-      !formData.date ||
-      !formData.startTime ||
-      !formData.endTime
+      !schedule.date ||
+      !schedule.startTime ||
+      !schedule.endTime
     ) {
       return false;
     }
@@ -124,13 +129,13 @@ function CreateEvent() {
         return false;
       }
 
-      if (event.date !== formData.date) {
+      if (event.date !== schedule.date) {
         return false;
       }
 
       return hasTimeOverlap(
-        formData.startTime,
-        formData.endTime,
+        schedule.startTime,
+        schedule.endTime,
         event.startTime,
         event.endTime
       );
@@ -154,6 +159,26 @@ function CreateEvent() {
       )
   );
 
+  const scheduleSelected =
+    formData.date &&
+    formData.startTime &&
+    formData.endTime &&
+    formData.endTime > formData.startTime;
+
+  useEffect(() => {
+    const preferredResource = location.state?.preferredResourceName
+      ?.trim()
+      .toLowerCase()
+      .replace(/s$/, "");
+    const resourceInput = {
+      chair: chairsInputRef,
+      microphone: microphonesInputRef,
+      projector: projectorsInputRef,
+    }[preferredResource];
+
+    resourceInput?.current?.focus();
+  }, [location.state?.preferredResourceName]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -174,6 +199,26 @@ function CreateEvent() {
         name === "endTime"
       ) {
         updatedData.venue = "";
+
+        const preferredVenue = venues.find(
+          (venue) =>
+            String(venue.id) ===
+            String(location.state?.preferredVenueId)
+        );
+
+        if (
+          updatedData.date &&
+          updatedData.startTime &&
+          updatedData.endTime &&
+          updatedData.endTime > updatedData.startTime &&
+          preferredVenue &&
+          !isVenueBookedForSelectedTime(
+            preferredVenue.name,
+            updatedData
+          )
+        ) {
+          updatedData.venue = preferredVenue.name;
+        }
       }
 
       return updatedData;
@@ -403,6 +448,7 @@ function CreateEvent() {
     setSaving(true);
     try {
       await saveEvent("Draft");
+      alert("Event saved as draft successfully.");
       navigate("/events");
     } catch (error) {
       alert(getApiError(error, "Unable to save the draft."));
@@ -415,13 +461,6 @@ function CreateEvent() {
     (venue) =>
       venue.name === formData.venue
   );
-
-  const scheduleSelected =
-    formData.date &&
-    formData.startTime &&
-    formData.endTime &&
-    formData.endTime >
-      formData.startTime;
 
   return (
     <div>
@@ -670,6 +709,7 @@ function CreateEvent() {
                 type="number"
                 name="chairs"
                 className="form-control"
+                ref={chairsInputRef}
                 min="0"
                 max={chairsAvailable}
                 value={formData.chairs}
@@ -691,6 +731,7 @@ function CreateEvent() {
                 type="number"
                 name="microphones"
                 className="form-control"
+                ref={microphonesInputRef}
                 min="0"
                 max={
                   microphonesAvailable
@@ -716,6 +757,7 @@ function CreateEvent() {
                 type="number"
                 name="projectors"
                 className="form-control"
+                ref={projectorsInputRef}
                 min="0"
                 max={
                   projectorsAvailable

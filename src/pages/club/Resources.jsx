@@ -1,7 +1,9 @@
 import useResources from "../../hooks/useResources";
+import { useNavigate } from "react-router-dom";
 
 function Resources() {
   const { resources } = useResources();
+  const navigate = useNavigate();
 
   const getResourceIcon = (name, category) => {
     const resourceName = name?.toLowerCase() || "";
@@ -119,6 +121,9 @@ function Resources() {
                   type="button"
                   className="btn resource-request-btn w-100"
                   disabled={available <= 0}
+                  onClick={() => navigate("/events/create", {
+                    state: { preferredResourceName: resource.name },
+                  })}
                 >
                   {available > 0
                     ? "Request Resource"
