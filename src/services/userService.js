@@ -6,7 +6,7 @@ export async function getUsers() {
 }
 
 export async function createUser(user) {
-  const response = await api.post("/users/admin-create", user);
+  const response = await api.post("/users", user);
   return response.data;
 }
 
